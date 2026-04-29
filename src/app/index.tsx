@@ -89,7 +89,7 @@ export default function Page() {
     } catch (error) {
       console.error(error);
       alert("Gagal terhubung ke database");
-    } 
+    }
     // finally {
     //   setIsLoading(false);
     // }
@@ -115,12 +115,51 @@ export default function Page() {
     }
   };
 
+  // Helper validasi minimal 4 jam (14.400 detik)
+  const isMinimal4Jam = (waktu: any) => {
+    // Ambil nilai jam & menit, default ke 0 jika kosong
+    const sH = parseInt(waktu.startJam || "0");
+    const sM = parseInt(waktu.startMenit || "0");
+    const eH = parseInt(waktu.endJam || "0");
+    const eM = parseInt(waktu.endMenit || "0");
+
+    const mulai = (sH * 3600) + (sM * 60);
+    const selesai = (eH * 3600) + (eM * 60);
+
+    // Logika jika lembur melewati tengah malam (misal mulai 22:00 pulang 03:00)
+    let selisih = selesai - mulai;
+    if (selisih < 0) {
+      selisih += 24 * 3600;
+    }
+
+    return selisih >= (4 * 3600); // Harus >= 14400 detik
+  };
 
 
   const handleSubmit = async () => {
     // 1. Validasi Dasar
     if (!nik || !nama) return alert("Harap isi NIK dan Nama terlebih dahulu!");
     if (!tandaTanganBase64) return alert("Harap isi Tanda Tangan terlebih dahulu!");
+
+    // Validasi Day 1
+    if (tanggalDay1 !== '') {
+      if (!waktuDay1.endJam || waktuDay1.endJam === '') {
+        return alert("Jam pulang Day 1 belum diisi!");
+      }
+      if (!isMinimal4Jam(waktuDay1)) {
+        return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
+      }
+    }
+
+    // Validasi Day 2
+    if (tanggalDay2 !== '') {
+      if (!waktuDay2.endJam || waktuDay2.endJam === '') {
+        return alert("Jam pulang Day 2 belum diisi!");
+      }
+      if (!isMinimal4Jam(waktuDay2)) {
+        return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
+      }
+    }
 
     // Variabel untuk menyimpan pesan hasil
     let pesanSukses = "";
@@ -131,8 +170,8 @@ export default function Page() {
       // 2. Jika Day 1 aktif, kirim data Day 1
       if (tanggalDay1 !== '') {
         const payloadDay1 = {
-          nik: nik, 
-          nama: nama, 
+          nik: nik,
+          nama: nama,
           jabatan: jabatan,
           tandaTangan: tandaTanganBase64,
           targetDay: 'day1',
@@ -153,9 +192,9 @@ export default function Page() {
       // 3. Jika Day 2 aktif, kirim data Day 2
       if (tanggalDay2 !== '') {
         const payloadDay2 = {
-          nik: nik, 
+          nik: nik,
           nama: nama,
-          jabatan: jabatan, 
+          jabatan: jabatan,
           tandaTangan: tandaTanganBase64,
           targetDay: 'day2',
           ...waktuDay2
