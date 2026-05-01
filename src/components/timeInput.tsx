@@ -8,8 +8,8 @@ const boxSize = screenWidth < 380 ? 40 : 48;
 interface ITimeInput {
     labelTanggal: string;
     waktu: {
-        startJam: string; startMenit: string; startDetik: string;
-        endJam: string; endMenit: string; endDetik: string;
+        startJam: string; startMenit: string;
+        endJam: string; endMenit: string;
     };
     onChangeWaktu: (field: string, value: string) => void;
     lockStart?: boolean
@@ -58,8 +58,8 @@ const TimeInput = ({ labelTanggal, waktu, onChangeWaktu, lockStart }: ITimeInput
                         <BoxInput value={waktu.startJam} fieldName="startJam" onChangeWaktu={onChangeWaktu} disabled={lockStart} />
                         <Text style={styles.colon}>:</Text>
                         <BoxInput value={waktu.startMenit} fieldName="startMenit" onChangeWaktu={onChangeWaktu} disabled={lockStart} />
-                        <Text style={styles.colon}>:</Text>
-                        <BoxInput value={waktu.startDetik} fieldName="startDetik" onChangeWaktu={onChangeWaktu} disabled={lockStart} />
+                        {/* <Text style={styles.colon}>:</Text>
+                        <BoxInput value={waktu.startDetik} fieldName="startDetik" onChangeWaktu={onChangeWaktu} disabled={lockStart} /> */}
                     </View>
                 </View>
 
@@ -75,8 +75,8 @@ const TimeInput = ({ labelTanggal, waktu, onChangeWaktu, lockStart }: ITimeInput
                         <BoxInput value={waktu.endJam} fieldName="endJam" onChangeWaktu={onChangeWaktu} />
                         <Text style={styles.colon}>:</Text>
                         <BoxInput value={waktu.endMenit} fieldName="endMenit" onChangeWaktu={onChangeWaktu} />
-                        <Text style={styles.colon}>:</Text>
-                        <BoxInput value={waktu.endDetik} fieldName="endDetik" onChangeWaktu={onChangeWaktu} />
+                        {/* <Text style={styles.colon}>:</Text>
+                        <BoxInput value={waktu.endDetik} fieldName="endDetik" onChangeWaktu={onChangeWaktu} /> */}
                     </View>
                 </View>
             </View>
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
         color: '#000',
     },
     boxActive: { borderColor: '#F4D03F', backgroundColor: '#FAFAFA' },
-    boxDisabled: { backgroundColor: '#F0F0F0', borderColor: '#F0F0F0', color: '#888' },
+    boxDisabled: { backgroundColor: '#505050', borderColor: '#bebebe', color: '#e5e5e5' },
 
     colon: {
         fontSize: 18,

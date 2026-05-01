@@ -10,7 +10,6 @@ import TimeInput from "../components/timeInput";
 export default function Page() {
   const [nik, setNik] = useState('');
   const [nama, setNama] = useState('');
-  // const [isLoading, setIsLoading] = useState(false);
   const [found, setFound] = useState(false)
   const [isNik, setIsNIK] = useState(false)
   const [tandaTanganBase64, setTandaTanganBase64] = useState('');
@@ -19,13 +18,13 @@ export default function Page() {
   const [jabatan, setJabatan] = useState('');
 
   const [waktuDay1, setWaktuDay1] = useState({
-    startJam: '', startMenit: '', startDetik: '',
-    endJam: '', endMenit: '', endDetik: ''
+    startJam: '', startMenit: '',
+    endJam: '', endMenit: ''
   });
 
   const [waktuDay2, setWaktuDay2] = useState({
-    startJam: '', startMenit: '', startDetik: '',
-    endJam: '', endMenit: '', endDetik: ''
+    startJam: '', startMenit: '',
+    endJam: '', endMenit: '', 
   });
 
   useEffect(() => {
@@ -36,8 +35,8 @@ export default function Page() {
         setTanggalDay1(res1.tanggal);
         if (res1.jam16 === true || res1.jam16 === "true") {
           setWaktuDay1({
-            startJam: '16', startMenit: '00', startDetik: '00',
-            endJam: '', endMenit: '', endDetik: ''
+            startJam: '16', startMenit: '00',
+            endJam: '', endMenit: '',
           });
         }
       } else {
@@ -50,8 +49,8 @@ export default function Page() {
         setTanggalDay2(res2.tanggal);
         if (res2.jam16 === true || res2.jam16 === "true") {
           setWaktuDay2({
-            startJam: '16', startMenit: '00', startDetik: '00',
-            endJam: '', endMenit: '', endDetik: ''
+            startJam: '16', startMenit: '00', 
+            endJam: '', endMenit: ''
           });
         }
       } else {
@@ -131,6 +130,8 @@ export default function Page() {
     if (selisih < 0) {
       selisih += 24 * 3600;
     }
+
+    if (mulai > selesai ){ return false};
 
     return selisih >= (4 * 3600); // Harus >= 14400 detik
   };
@@ -226,8 +227,9 @@ export default function Page() {
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
         <Text style={styles.THello}>Hello 👋🏻, Gardira</Text>
+        <Text>⚠️ Mohon isi sesuai absen di Fiory / Sap Portal ⚠️</Text>
 
-        <Gap height={20} />
+        <Gap height={23} />
         <Label text="NIK" status={isNik} user={found} />
         <View style={styles.containerNIK}>
           <Input value={nik} onChangeText={setNik} />
@@ -235,7 +237,7 @@ export default function Page() {
         </View>
         <Gap height={20} />
         <Label text="Nama" />
-        <Input value={nama} onChangeText={setNama} jabatan={jabatan} />
+        <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false}/>
 
         {tanggalDay1 && (
           <>

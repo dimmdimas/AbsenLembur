@@ -5,14 +5,15 @@ interface iInput {
     value?: string,
     onChangeText?: (text: string) => void;
     placeholder?: string,
-    jabatan?: string
+    jabatan?: string,
+    editable?: boolean
 }
 
 
-const Input = ({value, onChangeText, placeholder, jabatan}: iInput) => {
+const Input = ({value, onChangeText, placeholder, jabatan, editable}: iInput) => {
     return (
         <View style={styles.Container}> 
-            <TextInput style={styles.BoxInput} placeholder={placeholder} onChangeText={onChangeText} value={value}/>
+            <TextInput style={styles.BoxInput} placeholder={placeholder} onChangeText={onChangeText} value={value} editable={editable}/>
             {jabatan && (
                 <Text style={styles.jabatan}>{jabatan}</Text>
             )}
