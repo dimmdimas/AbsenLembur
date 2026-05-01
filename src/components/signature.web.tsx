@@ -26,7 +26,7 @@ const Signature: React.FC<SignatureProps> = ({ onOK }) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.label}>Tanda Tangan</Text>
+                <Text style={styles.label}>Tanda Tangan / Paraf</Text>
                 <TouchableOpacity onPress={handleClear}>
                     <Text style={styles.clearText}>Hapus Ulang</Text>
                 </TouchableOpacity>
