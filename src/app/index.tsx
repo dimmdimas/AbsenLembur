@@ -16,10 +16,14 @@ export default function Page() {
   const [tanggalDay1, setTanggalDay1] = useState('');
   const [tanggalDay2, setTanggalDay2] = useState('');
   const [jabatan, setJabatan] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // --- STATE BARU UNTUK TIDAK IKUT LEMBUR ---
   const [tidakIkutDay1, setTidakIkutDay1] = useState(false);
   const [tidakIkutDay2, setTidakIkutDay2] = useState(false);
+
+  // State untuk me-refresh komponen Tanda Tangan
+  const [resetKey, setResetKey] = useState(0);
 
   const [waktuDay1, setWaktuDay1] = useState({
     startJam: '', startMenit: '',
@@ -28,7 +32,7 @@ export default function Page() {
 
   const [waktuDay2, setWaktuDay2] = useState({
     startJam: '', startMenit: '',
-    endJam: '', endMenit: '', 
+    endJam: '', endMenit: '',
   });
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function Page() {
         setTanggalDay2(res2.tanggal);
         if (res2.jam16 === true || res2.jam16 === "true") {
           setWaktuDay2({
-            startJam: '16', startMenit: '00', 
+            startJam: '16', startMenit: '00',
             endJam: '', endMenit: ''
           });
         }
@@ -77,7 +81,7 @@ export default function Page() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Data User ditemukan:", data); 
+        console.log("Data User ditemukan:", data);
         setFound(true)
         setIsNIK(true)
         setNama(data.nama)
@@ -96,7 +100,7 @@ export default function Page() {
   const AmbilTanggalDay = async (day: string) => {
     try {
       const response = await fetch(`https://api.muhdimas.my.id/api/date?targetDay=${day}`);
-      if (!response.ok) return null; 
+      if (!response.ok) return null;
       const data = await response.json();
       return data;
     } catch (error) {
@@ -127,96 +131,86 @@ export default function Page() {
       selisih += 24 * 3600;
     }
 
-    if (mulai > selesai ){ return false};
+    if (mulai > selesai) { return false };
 
-    return selisih >= (4 * 3600); 
+    return selisih >= (4 * 3600);
   };
 
 
   const handleSubmit = async () => {
+    // 0. PENCEGAH DOUBLE CLICK: Jika sedang loading, hentikan fungsi
+    if (isLoading) return;
+
     // 1. Validasi Dasar
     if (!nik || !nama) return alert("Harap isi NIK dan Nama terlebih dahulu!");
     if (!tandaTanganBase64) return alert("Harap isi Tanda Tangan terlebih dahulu!");
 
-    // --- Validasi Day 1 (Lewati jika Tidak Ikut) ---
+    // --- Validasi Day 1 ---
     if (tanggalDay1 !== '') {
       if (!tidakIkutDay1) {
-        if (!waktuDay1.endJam || waktuDay1.endJam === '') {
-          return alert("Jam pulang Day 1 belum diisi!");
-        }
-        if (!isMinimal4Jam(waktuDay1)) {
-          return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
-        }
+        if (!waktuDay1.endJam || waktuDay1.endJam === '') return alert("Jam pulang Day 1 belum diisi!");
+        if (!isMinimal4Jam(waktuDay1)) return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
       }
     }
 
-    // --- Validasi Day 2 (Lewati jika Tidak Ikut) ---
+    // --- Validasi Day 2 ---
     if (tanggalDay2 !== '') {
       if (!tidakIkutDay2) {
-        if (!waktuDay2.endJam || waktuDay2.endJam === '') {
-          return alert("Jam pulang Day 2 belum diisi!");
-        }
-        if (!isMinimal4Jam(waktuDay2)) {
-          return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
-        }
+        if (!waktuDay2.endJam || waktuDay2.endJam === '') return alert("Jam pulang Day 2 belum diisi!");
+        if (!isMinimal4Jam(waktuDay2)) return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
       }
     }
 
     let pesanSukses = "";
-    const url = 'https://api.muhdimas.my.id/api/absen'
+    const url = 'https://api.muhdimas.my.id/api/absen';
+
+    // KUNCI: Set loading jadi true tepat sebelum mulai fetch ke API
+    setIsLoading(true);
 
     try {
-      // 2. Jika Day 1 aktif, kirim data Day 1
+      // 2. Kirim data Day 1
       if (tanggalDay1 !== '') {
+        // ... (Logika payloadDay1 & fetch Day 1 sama seperti sebelumnya) ...
         const payloadDay1 = {
-          nik: nik,
-          nama: nama,
-          jabatan: jabatan,
-          tandaTangan: tandaTanganBase64,
-          targetDay: 'day1',
-          // Override jam jadi 00:00 jika tidak ikut
-          ...(tidakIkutDay1 ? {
-            startJam: '00', startMenit: '00',
-            endJam: '00', endMenit: '00'
-          } : waktuDay1)
+          nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day1',
+          ...(tidakIkutDay1 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
         };
-
-        const response1 = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadDay1)
-        });
-
+        const response1 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay1) });
         if (response1.ok) pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`;
       }
 
-      // 3. Jika Day 2 aktif, kirim data Day 2
+      // 3. Kirim data Day 2
       if (tanggalDay2 !== '') {
+        // ... (Logika payloadDay2 & fetch Day 2 sama seperti sebelumnya) ...
         const payloadDay2 = {
-          nik: nik,
-          nama: nama,
-          jabatan: jabatan,
-          tandaTangan: tandaTanganBase64,
-          targetDay: 'day2',
-          // Override jam jadi 00:00 jika tidak ikut
-          ...(tidakIkutDay2 ? {
-            startJam: '00', startMenit: '00',
-            endJam: '00', endMenit: '00'
-          } : waktuDay2)
+          nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day2',
+          ...(tidakIkutDay2 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
         };
-
-        const response2 = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadDay2)
-        });
-
+        const response2 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay2) });
         if (response2.ok) pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`;
       }
 
-      // 4. Tampilkan pemberitahuan ke user
       if (pesanSukses !== "") {
         alert("Berhasil!\n" + pesanSukses);
+
+        // --- TAMBAHKAN KODE RESET FORM DI SINI ---
+        setNik('');
+        setNama('');
+        setJabatan('');
+        setFound(false);
+        setIsNIK(false);
+        setTandaTanganBase64('');
+        setTidakIkutDay1(false);
+        setTidakIkutDay2(false);
+
+        // Kembalikan jam pulang ke kosong (jam mulai biarkan utuh karena dari server)
+        setWaktuDay1(prev => ({ ...prev, endJam: '', endMenit: '' }));
+        setWaktuDay2(prev => ({ ...prev, endJam: '', endMenit: '' }));
+
+        // Paksa render ulang kotak tanda tangan agar bersih
+        setResetKey(prevKey => prevKey + 1);
+        // ------------------------------------------
+
       } else {
         alert("Tidak ada data hari lembur yang dikirim.");
       }
@@ -224,6 +218,9 @@ export default function Page() {
     } catch (error) {
       console.error(error);
       alert("Terjadi kesalahan jaringan.");
+    } finally {
+      // KUNCI: Kembalikan tombol ke keadaan semula baik saat error maupun sukses
+      setIsLoading(false);
     }
   }
 
@@ -241,7 +238,7 @@ export default function Page() {
         </View>
         <Gap height={20} />
         <Label text="Nama" />
-        <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false}/>
+        <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false} />
 
         {/* --- TAMPILAN DAY 1 --- */}
         {tanggalDay1 && (
@@ -251,11 +248,11 @@ export default function Page() {
               <Text style={styles.textTanggal}>{tanggalDay1}</Text>
               <View style={styles.switchRow}>
                 <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                <Switch 
+                <Switch
                   trackColor={{ false: "#767577", true: "#FFCDD2" }}
                   thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"}
-                  value={tidakIkutDay1} 
-                  onValueChange={setTidakIkutDay1} 
+                  value={tidakIkutDay1}
+                  onValueChange={setTidakIkutDay1}
                 />
               </View>
             </View>
@@ -283,11 +280,11 @@ export default function Page() {
               <Text style={styles.textTanggal}>{tanggalDay2}</Text>
               <View style={styles.switchRow}>
                 <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                <Switch 
+                <Switch
                   trackColor={{ false: "#767577", true: "#FFCDD2" }}
                   thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"}
-                  value={tidakIkutDay2} 
-                  onValueChange={setTidakIkutDay2} 
+                  value={tidakIkutDay2}
+                  onValueChange={setTidakIkutDay2}
                 />
               </View>
             </View>
@@ -308,7 +305,8 @@ export default function Page() {
         )}
 
         <Gap height={20} />
-        <Signature onOK={(base64) => setTandaTanganBase64(base64)} />
+        {/* Tambahkan key={resetKey} di sini */}
+        <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
       </ScrollView>
 
       <View style={styles.footer}>
@@ -343,37 +341,37 @@ const styles = StyleSheet.create({
 
   // Style baru untuk fitur Tidak Ikut Lembur
   headerLembur: {
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 10,
     backgroundColor: '#F5F5F5',
     padding: 10,
     borderRadius: 8
   },
   textTanggal: {
-    fontSize: 16, 
+    fontSize: 16,
     fontWeight: 'bold',
   },
   switchRow: {
-    flexDirection: 'row', 
+    flexDirection: 'row',
     alignItems: 'center'
   },
   textSwitch: {
-    marginRight: 8, 
-    color: '#D32F2F', 
+    marginRight: 8,
+    color: '#D32F2F',
     fontWeight: '500',
     fontSize: 12
   },
   boxTidakIkut: {
-    padding: 15, 
-    backgroundColor: '#FFEBEE', 
+    padding: 15,
+    backgroundColor: '#FFEBEE',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#FFCDD2'
   },
   textTidakIkut: {
-    color: '#D32F2F', 
+    color: '#D32F2F',
     textAlign: 'center',
     fontWeight: 'bold'
   }
