@@ -22,6 +22,9 @@ export default function Page() {
   const [tidakIkutDay1, setTidakIkutDay1] = useState(false);
   const [tidakIkutDay2, setTidakIkutDay2] = useState(false);
 
+  const [isSudahDay1, setIsSudahDay1] = useState(false);
+  const [isSudahDay2, setIsSudahDay2] = useState(false);
+
   // State untuk me-refresh komponen Tanda Tangan
   const [resetKey, setResetKey] = useState(0);
 
@@ -76,20 +79,32 @@ export default function Page() {
     }
 
     try {
+      // 1. Cari Data Karyawan
       const url = `https://api.muhdimas.my.id/api/users/${nik}`;
       const response = await fetch(url)
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Data User ditemukan:", data);
         setFound(true)
         setIsNIK(true)
         setNama(data.nama)
         setJabatan(data.jabatan)
+
+        // 2. CEK STATUS ABSEN (Panggil API yang baru kita buat)
+        const statusRes = await fetch(`https://api.muhdimas.my.id/api/users/cek-absen/${nik}`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          console.log(statusData)
+          setIsSudahDay1(statusData.day1); // Set true jika sudah absen Day 1
+          setIsSudahDay2(statusData.day1); // Set true jika sudah absen Day 2
+        }
+
       } else {
         setNama('');
         setJabatan('');
-        setFound(false)
+        setFound(false);
+        setIsSudahDay1(false);
+        setIsSudahDay2(isSudahDay1);
       }
     } catch (error) {
       console.error(error);
@@ -224,6 +239,8 @@ export default function Page() {
     }
   }
 
+  const tampilkanFormLanjutan = (tanggalDay1 !== '' && !isSudahDay1) || (tanggalDay2 !== '' && !isSudahDay2);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -243,32 +260,30 @@ export default function Page() {
         {/* --- TAMPILAN DAY 1 --- */}
         {tanggalDay1 && (
           <View style={{ marginTop: 20 }}>
-            {/* Header & Switch */}
-            <View style={styles.headerLembur}>
-              <Text style={styles.textTanggal}>{tanggalDay1}</Text>
-              <View style={styles.switchRow}>
-                <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                <Switch
-                  trackColor={{ false: "#767577", true: "#FFCDD2" }}
-                  thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"}
-                  value={tidakIkutDay1}
-                  onValueChange={setTidakIkutDay1}
-                />
+            {isSudahDay1 ? (
+              // JIKA SUDAH ABSEN DAY 1
+              <View style={styles.boxSudahAbsen}>
+                <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 1.</Text>
               </View>
-            </View>
-
-            {/* Render TimeInput atau Peringatan tergantung state switch */}
-            {!tidakIkutDay1 ? (
-              <TimeInput
-                labelTanggal={""} // Label dikosongkan karena sudah ada di header atas
-                waktu={waktuDay1}
-                lockStart={waktuDay1.startJam === '16'}
-                onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)}
-              />
             ) : (
-              <View style={styles.boxTidakIkut}>
-                <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
-              </View>
+              // JIKA BELUM ABSEN (Tampilkan form normal)
+              <>
+                <View style={styles.headerLembur}>
+                  <Text style={styles.textTanggal}>{tanggalDay1}</Text>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                    <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
+                  </View>
+                </View>
+
+                {!tidakIkutDay1 ? (
+                  <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                ) : (
+                  <View style={styles.boxTidakIkut}>
+                    <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
         )}
@@ -276,42 +291,50 @@ export default function Page() {
         {/* --- TAMPILAN DAY 2 --- */}
         {tanggalDay2 && (
           <View style={{ marginTop: 20 }}>
-            <View style={styles.headerLembur}>
-              <Text style={styles.textTanggal}>{tanggalDay2}</Text>
-              <View style={styles.switchRow}>
-                <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                <Switch
-                  trackColor={{ false: "#767577", true: "#FFCDD2" }}
-                  thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"}
-                  value={tidakIkutDay2}
-                  onValueChange={setTidakIkutDay2}
-                />
+            {isSudahDay2 ? (
+              // JIKA SUDAH ABSEN DAY 2
+              <View style={styles.boxSudahAbsen}>
+                <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 2.</Text>
               </View>
-            </View>
-
-            {!tidakIkutDay2 ? (
-              <TimeInput
-                labelTanggal={""}
-                waktu={waktuDay2}
-                lockStart={waktuDay2.startJam === '16'}
-                onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)}
-              />
             ) : (
-              <View style={styles.boxTidakIkut}>
-                <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
-              </View>
+              // JIKA BELUM ABSEN
+              <>
+                <View style={styles.headerLembur}>
+                  <Text style={styles.textTanggal}>{tanggalDay2}</Text>
+                  <View style={styles.switchRow}>
+                    <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                    <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
+                  </View>
+                </View>
+
+                {!tidakIkutDay2 ? (
+                  <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                ) : (
+                  <View style={styles.boxTidakIkut}>
+                    <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                  </View>
+                )}
+              </>
             )}
           </View>
         )}
 
         <Gap height={20} />
-        {/* Tambahkan key={resetKey} di sini */}
-        <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
+        {/* BUNGKUS SIGNATURE */}
+        {tampilkanFormLanjutan && (
+          <>
+            <Gap height={20} />
+            <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
+          </>
+        )}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Button label="Submit" onPress={() => handleSubmit()} />
-      </View>
+      {/* BUNGKUS TOMBOL SUBMIT */}
+      {tampilkanFormLanjutan && (
+        <View style={styles.footer}>
+          <Button label={isLoading ? "Menyimpan..." : "Submit"} onPress={() => handleSubmit()} />
+        </View>
+      )}
 
     </View>
   );
@@ -373,6 +396,18 @@ const styles = StyleSheet.create({
   textTidakIkut: {
     color: '#D32F2F',
     textAlign: 'center',
+    fontWeight: 'bold'
+  },
+  boxSudahAbsen: {
+    padding: 15,
+    backgroundColor: '#E8F5E9', // Hijau muda
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    alignItems: 'center'
+  },
+  textSudahAbsen: {
+    color: '#2E7D32',
     fontWeight: 'bold'
   }
 });
