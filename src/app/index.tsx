@@ -78,6 +78,9 @@ export default function Page() {
       return;
     }
 
+    setIsSudahDay1(false);
+    setIsSudahDay2(false);
+
     try {
       // 1. Cari Data Karyawan
       const url = `https://api.muhdimas.my.id/api/users/${nik}`;
@@ -95,16 +98,14 @@ export default function Page() {
         if (statusRes.ok) {
           const statusData = await statusRes.json();
           console.log(statusData)
-          setIsSudahDay1(statusData.day1); // Set true jika sudah absen Day 1
-          setIsSudahDay2(statusData.day1); // Set true jika sudah absen Day 2
+          setIsSudahDay1(statusData.day1);
+          setIsSudahDay2(statusData.day1);
         }
 
       } else {
         setNama('');
         setJabatan('');
         setFound(false);
-        setIsSudahDay1(false);
-        setIsSudahDay2(isSudahDay1);
       }
     } catch (error) {
       console.error(error);
@@ -191,7 +192,11 @@ export default function Page() {
           ...(tidakIkutDay1 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
         };
         const response1 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay1) });
-        if (response1.ok) pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`;
+        if (response1.ok) {
+          pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`
+          setIsSudahDay1(true);
+        };
+
       }
 
       // 3. Kirim data Day 2
@@ -202,7 +207,10 @@ export default function Page() {
           ...(tidakIkutDay2 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
         };
         const response2 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay2) });
-        if (response2.ok) pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`;
+        if (response2.ok) {
+          pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`
+          setIsSudahDay2(true);
+        };
       }
 
       if (pesanSukses !== "") {
