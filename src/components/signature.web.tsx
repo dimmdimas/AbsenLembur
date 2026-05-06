@@ -17,9 +17,35 @@ const Signature: React.FC<SignatureProps> = ({ onOK }) => {
     // Fungsi ini dipanggil otomatis setiap kali user selesai mencoret (mengangkat kursor/jari)
     const handleEnd = () => {
         if (!sigPad.current?.isEmpty()) {
-            // Mengambil hasil coretan menjadi Base64
-            const dataURL = sigPad.current?.getTrimmedCanvas().toDataURL('image/png');
-            onOK(dataURL);
+            // 1. Ambil canvas asli yang sudah dipotong area kosongnya
+            const trimmedCanvas = sigPad.current?.getTrimmedCanvas();
+
+            if (trimmedCanvas) {
+                const MAX_WIDTH = 60; // Resolusi maksimal untuk Excel
+                let finalDataURL = '';
+
+                // 2. Jika gambar aslinya kebesaran, kita perkecil pakai canvas sementara
+                if (trimmedCanvas.width > MAX_WIDTH) {
+                    const scale = MAX_WIDTH / trimmedCanvas.width;
+                    
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = trimmedCanvas.width * scale;
+                    tempCanvas.height = trimmedCanvas.height * scale;
+                    
+                    const ctx = tempCanvas.getContext('2d');
+                    if (ctx) {
+                        ctx.drawImage(trimmedCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                    }
+                    
+                    finalDataURL = tempCanvas.toDataURL('image/png');
+                } else {
+                    // Jika memang coretannya kecil, langsung jadikan base64
+                    finalDataURL = trimmedCanvas.toDataURL('image/png');
+                }
+
+                // 3. Kirim base64 yang sudah sangat ringan ini ke halaman utama
+                onOK(finalDataURL);
+            }
         }
     };
 
