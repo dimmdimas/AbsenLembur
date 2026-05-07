@@ -28,6 +28,11 @@ export default function Page() {
   // State untuk me-refresh komponen Tanda Tangan
   const [resetKey, setResetKey] = useState(0);
 
+  const [isApprovalOnly, setIsApprovalOnly] = useState(false);
+  const NIK_OSH = "10038106";     // Ganti dengan NIK asli OSH
+  const NIK_MANAGER = "11"; // Ganti dengan NIK asli Manager
+  const NIK_HRD = "22";     // Ganti dengan NIK asli HRD
+
   const [waktuDay1, setWaktuDay1] = useState({
     startJam: '', startMenit: '',
     endJam: '', endMenit: ''
@@ -152,6 +157,8 @@ export default function Page() {
     return selisih >= (4 * 3600);
   };
 
+  const hideTimeInput = nik === NIK_MANAGER || nik === NIK_HRD || (nik === NIK_OSH && isApprovalOnly);
+
 
   const handleSubmit = async () => {
     // 0. PENCEGAH DOUBLE CLICK: Jika sedang loading, hentikan fungsi
@@ -163,7 +170,8 @@ export default function Page() {
 
     // --- Validasi Day 1 ---
     if (tanggalDay1 !== '') {
-      if (!tidakIkutDay1) {
+      // TAMBAHAN: Validasi jam hanya berlaku jika BUKAN mode approval
+      if (!tidakIkutDay1 && !hideTimeInput) {
         if (!waktuDay1.endJam || waktuDay1.endJam === '') return alert("Jam pulang Day 1 belum diisi!");
         if (!isMinimal4Jam(waktuDay1)) return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
       }
@@ -171,7 +179,8 @@ export default function Page() {
 
     // --- Validasi Day 2 ---
     if (tanggalDay2 !== '') {
-      if (!tidakIkutDay2) {
+      // TAMBAHAN: Validasi jam hanya berlaku jika BUKAN mode approval
+      if (!tidakIkutDay2 && !hideTimeInput) {
         if (!waktuDay2.endJam || waktuDay2.endJam === '') return alert("Jam pulang Day 2 belum diisi!");
         if (!isMinimal4Jam(waktuDay2)) return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
       }
@@ -180,31 +189,29 @@ export default function Page() {
     let pesanSukses = "";
     const url = 'https://api.muhdimas.my.id/api/absen';
 
-    // KUNCI: Set loading jadi true tepat sebelum mulai fetch ke API
     setIsLoading(true);
 
     try {
       // 2. Kirim data Day 1
       if (tanggalDay1 !== '') {
-        // ... (Logika payloadDay1 & fetch Day 1 sama seperti sebelumnya) ...
         const payloadDay1 = {
           nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day1',
-          ...(tidakIkutDay1 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
+          // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
+          ...(tidakIkutDay1 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
         };
         const response1 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay1) });
         if (response1.ok) {
           pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`
           setIsSudahDay1(true);
         };
-
       }
 
       // 3. Kirim data Day 2
       if (tanggalDay2 !== '') {
-        // ... (Logika payloadDay2 & fetch Day 2 sama seperti sebelumnya) ...
         const payloadDay2 = {
           nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day2',
-          ...(tidakIkutDay2 ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
+          // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
+          ...(tidakIkutDay2 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
         };
         const response2 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay2) });
         if (response2.ok) {
@@ -265,64 +272,86 @@ export default function Page() {
         <Label text="Nama" />
         <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false} />
 
-        {/* --- TAMPILAN DAY 1 --- */}
-        {tanggalDay1 && (
-          <View style={{ marginTop: 20 }}>
-            {isSudahDay1 ? (
-              // JIKA SUDAH ABSEN DAY 1
-              <View style={styles.boxSudahAbsen}>
-                <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 1.</Text>
-              </View>
-            ) : (
-              // JIKA BELUM ABSEN (Tampilkan form normal)
-              <>
-                <View style={styles.headerLembur}>
-                  <Text style={styles.textTanggal}>{tanggalDay1}</Text>
-                  <View style={styles.switchRow}>
-                    <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                    <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
-                  </View>
-                </View>
-
-                {!tidakIkutDay1 ? (
-                  <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
-                ) : (
-                  <View style={styles.boxTidakIkut}>
-                    <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
-                  </View>
-                )}
-              </>
-            )}
+        {/* --- TAMBAHAN 4A: TOMBOL KHUSUS OSH --- */}
+        {nik === NIK_OSH && (
+          <View style={{ marginTop: 15 }}>
+            <Button 
+              label={isApprovalOnly ? "✅ Mode: Hanya Approval" : "📝 Mode: Ikut Lembur"} 
+              onPress={() => setIsApprovalOnly(!isApprovalOnly)} 
+            />
+            <Text style={{ fontSize: 12, color: 'gray', textAlign: 'center', marginTop: 5 }}>
+              Klik tombol di atas untuk mengubah mode
+            </Text>
           </View>
         )}
 
-        {/* --- TAMPILAN DAY 2 --- */}
-        {tanggalDay2 && (
-          <View style={{ marginTop: 20 }}>
-            {isSudahDay2 ? (
-              // JIKA SUDAH ABSEN DAY 2
-              <View style={styles.boxSudahAbsen}>
-                <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 2.</Text>
-              </View>
-            ) : (
-              // JIKA BELUM ABSEN
-              <>
-                <View style={styles.headerLembur}>
-                  <Text style={styles.textTanggal}>{tanggalDay2}</Text>
-                  <View style={styles.switchRow}>
-                    <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                    <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
+        {/* --- TAMBAHAN 4B: JIKA MANAGER/HRD/OSH(Approval), TAMPILKAN PESAN INI --- */}
+        {hideTimeInput && tampilkanFormLanjutan ? (
+          <View style={{ marginTop: 20, padding: 15, backgroundColor: '#E3F2FD', borderRadius: 8 }}>
+            <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 16 }}>
+              Mode Approval Aktif
+            </Text>
+            <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
+              Jam lembur disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
+            </Text>
+          </View>
+        ) : (
+          // JIKA BUKAN MODE APPROVAL, TAMPILKAN FORM JAM SEPERTI BIASA
+          <View>
+            {/* --- TAMPILAN DAY 1 --- */}
+            {tanggalDay1 && (
+              <View style={{ marginTop: 20 }}>
+                {isSudahDay1 ? (
+                  <View style={styles.boxSudahAbsen}>
+                    <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 1.</Text>
                   </View>
-                </View>
-
-                {!tidakIkutDay2 ? (
-                  <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
                 ) : (
-                  <View style={styles.boxTidakIkut}>
-                    <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
-                  </View>
+                  <>
+                    <View style={styles.headerLembur}>
+                      <Text style={styles.textTanggal}>{tanggalDay1}</Text>
+                      <View style={styles.switchRow}>
+                        <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                        <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
+                      </View>
+                    </View>
+                    {!tidakIkutDay1 ? (
+                      <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                    ) : (
+                      <View style={styles.boxTidakIkut}>
+                        <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                      </View>
+                    )}
+                  </>
                 )}
-              </>
+              </View>
+            )}
+
+            {/* --- TAMPILAN DAY 2 --- */}
+            {tanggalDay2 && (
+              <View style={{ marginTop: 20 }}>
+                {isSudahDay2 ? (
+                  <View style={styles.boxSudahAbsen}>
+                    <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 2.</Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={styles.headerLembur}>
+                      <Text style={styles.textTanggal}>{tanggalDay2}</Text>
+                      <View style={styles.switchRow}>
+                        <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                        <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
+                      </View>
+                    </View>
+                    {!tidakIkutDay2 ? (
+                      <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                    ) : (
+                      <View style={styles.boxTidakIkut}>
+                        <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
             )}
           </View>
         )}
