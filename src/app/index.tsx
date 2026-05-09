@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native"; // Tambahkan Switch
-import Button from "../components/button";
-import Gap from "../components/gap";
-import Input from "../components/input";
-import Label from "../components/label";
-import Signature from "../components/signature.web";
-import TimeInput from "../components/timeInput";
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Button, Gap, Input, Label, Signature, TimeInput } from "../components";
 
 export default function Page() {
   const [nik, setNik] = useState('');
@@ -275,9 +270,9 @@ export default function Page() {
         {/* --- TAMBAHAN 4A: TOMBOL KHUSUS OSH --- */}
         {nik === NIK_OSH && (
           <View style={{ marginTop: 15 }}>
-            <Button 
-              label={isApprovalOnly ? "✅ Mode: Hanya Approval" : "📝 Mode: Ikut Lembur"} 
-              onPress={() => setIsApprovalOnly(!isApprovalOnly)} 
+            <Button
+              label={isApprovalOnly ? "✅ Mode: Hanya Approval" : "📝 Mode: Ikut Lembur"}
+              onPress={() => setIsApprovalOnly(!isApprovalOnly)}
             />
             <Text style={{ fontSize: 12, color: 'gray', textAlign: 'center', marginTop: 5 }}>
               Klik tombol di atas untuk mengubah mode
@@ -369,7 +364,15 @@ export default function Page() {
       {/* BUNGKUS TOMBOL SUBMIT */}
       {tampilkanFormLanjutan && (
         <View style={styles.footer}>
-          <Button label={isLoading ? "Menyimpan..." : "Submit"} onPress={() => handleSubmit()} />
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              {/* Anda bisa menggunakan ActivityIndicator bawaan React Native */}
+              <ActivityIndicator size="small" color="#1976D2" />
+              <Text style={styles.textLoading}>Sedang memproses...</Text>
+            </View>
+          ) : (
+            <Button label="Submit" onPress={() => handleSubmit()} />
+          )}
         </View>
       )}
 
@@ -446,5 +449,17 @@ const styles = StyleSheet.create({
   textSudahAbsen: {
     color: '#2E7D32',
     fontWeight: 'bold'
-  }
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  textLoading: {
+    marginLeft: 10,
+    color: '#1976D2',
+    fontWeight: '600',
+    fontSize: 14,
+  },
 });
