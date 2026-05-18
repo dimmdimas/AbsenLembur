@@ -25,7 +25,7 @@ export default function Page() {
 
   const [isApprovalOnly, setIsApprovalOnly] = useState(false);
   const NIK_OSH = "10038106";     // Ganti dengan NIK asli OSH
-  const NIK_MANAGER = "1000024"; // Ganti dengan NIK asli Manager
+  const NIK_MANAGER = "10000224"; // Ganti dengan NIK asli Manager
   const NIK_HRD = "10003315";     // Ganti dengan NIK asli HRD
 
   const [waktuDay1, setWaktuDay1] = useState({
