@@ -21,7 +21,7 @@ const Signature: React.FC<SignatureProps> = ({ onOK }) => {
             const trimmedCanvas = sigPad.current?.getTrimmedCanvas();
 
             if (trimmedCanvas) {
-                const MAX_WIDTH = 160; // Resolusi maksimal untuk Excel
+                const MAX_WIDTH = 220; // Resolusi maksimal untuk Excel
                 let finalDataURL = '';
 
                 // 2. Jika gambar aslinya kebesaran, kita perkecil pakai canvas sementara
