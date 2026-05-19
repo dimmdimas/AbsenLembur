@@ -5,7 +5,7 @@ import { Button, Gap, Input, Label, Signature, TimeInput } from "../components";
 export default function Page() {
   const [nik, setNik] = useState('');
   const [nama, setNama] = useState('');
-  const [found, setFound] = useState(false)
+  const [found, setFound] = useState(true)
   const [isNik, setIsNIK] = useState(false)
   const [tandaTanganBase64, setTandaTanganBase64] = useState('');
   const [tanggalDay1, setTanggalDay1] = useState('');
@@ -22,6 +22,10 @@ export default function Page() {
 
   // State untuk me-refresh komponen Tanda Tangan
   const [resetKey, setResetKey] = useState(0);
+  const [isTidakWajib, setIsTidakWajib] = useState(false);
+
+  // State untuk errorMsg
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [isApprovalOnly, setIsApprovalOnly] = useState(false);
   const NIK_OSH = "10038106";     // Ganti dengan NIK asli OSH
@@ -74,42 +78,72 @@ export default function Page() {
 
   const CariNIK = async () => {
     if (!nik) {
-      alert("Silakan masukkan NIK terlebih dahulu");
+      setErrorMessage("Silakan masukkan NIK terlebih dahulu");
       return;
     }
 
     setIsSudahDay1(false);
     setIsSudahDay2(false);
+    setErrorMessage('');
+    setIsTidakWajib(false);
 
     try {
-      // 1. Cari Data Karyawan
-      const url = `https://api.muhdimas.my.id/api/users/${nik}`;
-      const response = await fetch(url)
-      const data = await response.json();
+      // 1. CARI DATA KARYAWAN
+      const urlInfo = `https://api.muhdimas.my.id/api/users/${nik}`;
+      const responseInfo = await fetch(urlInfo);
+      const dataInfo = await responseInfo.json();
 
-      if (response.ok) {
-        setFound(true)
-        setIsNIK(true)
-        setNama(data.nama)
-        setJabatan(data.jabatan)
+      if (responseInfo.ok) {
 
-        // 2. CEK STATUS ABSEN (Panggil API yang baru kita buat)
-        const statusRes = await fetch(`https://api.muhdimas.my.id/api/users/cek-absen/${nik}`);
-        if (statusRes.ok) {
-          const statusData = await statusRes.json();
-          console.log(statusData)
-          setIsSudahDay1(statusData.day1);
-          setIsSudahDay2(statusData.day1);
+        // 2. CEK APAKAH NIK ADA DI COLLECTION 'list_users'
+        const urlWajib = `https://api.muhdimas.my.id/api/cek-wajib-absen/${nik}`;
+        const responseWajib = await fetch(urlWajib);
+
+        // --- LOGIKA BARU: Cek apakah NIK ini adalah barisan Approval (Jalur VIP) ---
+        const isApprover = nik === NIK_OSH || nik === NIK_MANAGER || nik === NIK_HRD;
+
+        // JIKA ADA DI LIST_USERS **ATAU** DIA ADALAH APPROVER
+        if (responseWajib.ok || isApprover) {
+
+          setFound(true);
+          setIsNIK(true);
+          setNama(dataInfo.nama);
+          setJabatan(dataInfo.jabatan);
+          setErrorMessage('');
+          setIsTidakWajib(false); // Pastikan status blokir dimatikan
+
+          // 3. CEK STATUS ABSEN DAY 1 & DAY 2
+          const statusRes = await fetch(`https://api.muhdimas.my.id/api/users/cek-absen/${nik}`);
+          if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            setIsSudahDay1(statusData.day1);
+            setIsSudahDay2(statusData.day2);
+          }
+
+        } else {
+          // JIKA TIDAK ADA DI LIST_USERS DAN BUKAN APPROVER: Tampilkan Kotak Oranye
+          setNama(dataInfo.nama);
+          setJabatan(dataInfo.jabatan);
+
+          // PERBAIKAN: found HARUS true agar UI di bawah Nama (termasuk kotak oranye) bisa dirender!
+          setFound(true);
+          setIsNIK(true); // Label NIK tetap normal
+          setIsTidakWajib(true); // Aktifkan mode kotak oranye
+
+          setErrorMessage(''); // Kosongkan error merah di atas agar tidak dobel dengan kotak oranye
         }
 
       } else {
+        // JIKA NIK SAMA SEKALI TIDAK ADA DI DATABASE KARYAWAN UMUM
         setNama('');
         setJabatan('');
         setFound(false);
+        setIsNIK(false);
+        setErrorMessage('⚠️ NIK tidak ditemukan di database karyawan.');
       }
     } catch (error) {
       console.error(error);
-      alert("Gagal terhubung ke database");
+      setErrorMessage("Gagal terhubung ke server database.");
     }
   }
 
@@ -191,6 +225,8 @@ export default function Page() {
       if (tanggalDay1 !== '') {
         const payloadDay1 = {
           nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day1',
+
+          isApprovalMode: hideTimeInput, // <--- TAMBAHKAN BARIS INI
           // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
           ...(tidakIkutDay1 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
         };
@@ -205,6 +241,8 @@ export default function Page() {
       if (tanggalDay2 !== '') {
         const payloadDay2 = {
           nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day2',
+
+          isApprovalMode: hideTimeInput, // <--- TAMBAHKAN BARIS INI
           // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
           ...(tidakIkutDay2 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
         };
@@ -249,7 +287,15 @@ export default function Page() {
     }
   }
 
-  const tampilkanFormLanjutan = (tanggalDay1 !== '' && !isSudahDay1) || (tanggalDay2 !== '' && !isSudahDay2);
+  // Form lanjutan HANYA muncul jika ditemukan, DAN wajib absen, DAN belum absen
+  const tampilkanFormLanjutan = found && !isTidakWajib && ((tanggalDay1 !== '' && !isSudahDay1) || (tanggalDay2 !== '' && !isSudahDay2));
+
+  const tanggalAktif = [tanggalDay1, tanggalDay2].filter(tgl => tgl !== '').join(' & ');
+
+  const tanggalSelesaiArr = [];
+  if (tanggalDay1 !== '' && isSudahDay1) tanggalSelesaiArr.push(tanggalDay1);
+  if (tanggalDay2 !== '' && isSudahDay2) tanggalSelesaiArr.push(tanggalDay2);
+  const teksTanggalSelesai = tanggalSelesaiArr.join(' & ');
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -260,98 +306,120 @@ export default function Page() {
         <Gap height={23} />
         <Label text="NIK" status={isNik} user={found} />
         <View style={styles.containerNIK}>
-          <Input value={nik} onChangeText={setNik} />
+          <Input value={nik} onChangeText={(text) => {
+            setNik(text);
+            // setFound(false);
+            setIsNIK(false);
+            setErrorMessage('');
+          }} />
           <Button label="Enter" onPress={CariNIK} />
         </View>
+        {errorMessage !== '' && (
+          <View style={styles.boxError}>
+            <Text style={styles.textError}>{errorMessage}</Text>
+          </View>
+        )}
         <Gap height={20} />
         <Label text="Nama" />
         <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false} />
 
-        {/* --- TAMBAHAN 4A: TOMBOL KHUSUS OSH --- */}
-        {nik === NIK_OSH && (
-          <View style={{ marginTop: 15 }}>
-            <Button
-              label={isApprovalOnly ? "✅ Mode: Hanya Approval" : "📝 Mode: Ikut Lembur"}
-              onPress={() => setIsApprovalOnly(!isApprovalOnly)}
-            />
-            <Text style={{ fontSize: 12, color: 'gray', textAlign: 'center', marginTop: 5 }}>
-              Klik tombol di atas untuk mengubah mode
-            </Text>
-          </View>
-        )}
+        {/* --- LOGIKA TAMPILAN DIMULAI DARI SINI --- */}
+        {found && (
+          <View style={{ marginTop: 20 }}>
+            {isTidakWajib ? (
+              // 1. TAMPILAN JIKA TIDAK ADA DI LIST_USERS (Kotak Peringatan)
+              <View style={[styles.boxSudahAbsen, { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
+                <Text style={[styles.textSudahAbsen, { color: '#E65100', textAlign: 'center' }]}>
+                  ⛔ Anda tidak terdaftar dalam jadwal wajib lembur untuk tanggal {tanggalAktif}.
+                </Text>
+              </View>
+            ) : (
+              // 2. TAMPILAN JIKA NORMAL & WAJIB ABSEN (Form Asli Anda)
+              <View>
 
-        {/* --- TAMBAHAN 4B: JIKA MANAGER/HRD/OSH(Approval), TAMPILKAN PESAN INI --- */}
-        {hideTimeInput && tampilkanFormLanjutan ? (
-          <View style={{ marginTop: 20, padding: 15, backgroundColor: '#E3F2FD', borderRadius: 8 }}>
-            <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 16 }}>
-              Mode Approval Aktif
-            </Text>
-            <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
-              Jam lembur disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
-            </Text>
-          </View>
-        ) : (
-          // JIKA BUKAN MODE APPROVAL, TAMPILKAN FORM JAM SEPERTI BIASA
-          <View>
-            {/* --- TAMPILAN DAY 1 --- */}
-            {tanggalDay1 && (
-              <View style={{ marginTop: 20 }}>
-                {isSudahDay1 ? (
-                  <View style={styles.boxSudahAbsen}>
-                    <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 1.</Text>
+                {/* --- KOTAK HIJAU DINAMIS (Muncul jika ada tanggal yang sudah diabsen) --- */}
+                {teksTanggalSelesai !== '' && (
+                  <View style={[styles.boxSudahAbsen, { marginBottom: 15 }]}>
+                    <Text style={[styles.textSudahAbsen, { textAlign: 'center' }]}>
+                      ✅ Anda sudah mengisi absen lembur untuk tanggal {teksTanggalSelesai}.
+                    </Text>
+                  </View>
+                )}
+
+                {/* --- TAMBAHAN 4A: TOMBOL KHUSUS OSH --- */}
+                {nik === NIK_OSH && (
+                  <View style={{ marginBottom: 15 }}>
+                    <Button
+                      label={isApprovalOnly ? "✅ Mode: Hanya Approval" : "📝 Mode: Ikut Lembur"}
+                      onPress={() => setIsApprovalOnly(!isApprovalOnly)}
+                    />
+                    <Text style={{ fontSize: 12, color: 'gray', textAlign: 'center', marginTop: 5 }}>
+                      Klik tombol di atas untuk mengubah mode
+                    </Text>
+                  </View>
+                )}
+
+                {/* --- TAMBAHAN 4B: JIKA MANAGER/HRD/OSH(Approval) --- */}
+                {hideTimeInput && tampilkanFormLanjutan ? (
+                  <View style={{ padding: 15, backgroundColor: '#E3F2FD', borderRadius: 8 }}>
+                    <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 16 }}>
+                      Mode Approval Aktif
+                    </Text>
+                    <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
+                      Jam lembur disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
+                    </Text>
                   </View>
                 ) : (
-                  <>
-                    <View style={styles.headerLembur}>
-                      <Text style={styles.textTanggal}>{tanggalDay1}</Text>
-                      <View style={styles.switchRow}>
-                        <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                        <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
-                      </View>
-                    </View>
-                    {!tidakIkutDay1 ? (
-                      <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
-                    ) : (
-                      <View style={styles.boxTidakIkut}>
-                        <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                  // JIKA BUKAN MODE APPROVAL, TAMPILKAN FORM JAM SEPERTI BIASA
+                  <View>
+
+                    {/* --- TAMPILAN DAY 1 (Hanya muncul jika Day 1 ADA dan BELUM diabsen) --- */}
+                    {tanggalDay1 !== '' && !isSudahDay1 && (
+                      <View style={{ marginTop: 10 }}>
+                        <View style={styles.headerLembur}>
+                          <Text style={styles.textTanggal}>{tanggalDay1}</Text>
+                          <View style={styles.switchRow}>
+                            <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                            <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
+                          </View>
+                        </View>
+                        {!tidakIkutDay1 ? (
+                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                        ) : (
+                          <View style={styles.boxTidakIkut}>
+                            <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                          </View>
+                        )}
                       </View>
                     )}
-                  </>
+
+                    {/* --- TAMPILAN DAY 2 (Hanya muncul jika Day 2 ADA dan BELUM diabsen) --- */}
+                    {tanggalDay2 !== '' && !isSudahDay2 && (
+                      <View style={{ marginTop: 20 }}>
+                        <View style={styles.headerLembur}>
+                          <Text style={styles.textTanggal}>{tanggalDay2}</Text>
+                          <View style={styles.switchRow}>
+                            <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
+                            <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
+                          </View>
+                        </View>
+                        {!tidakIkutDay2 ? (
+                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                        ) : (
+                          <View style={styles.boxTidakIkut}>
+                            <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                  </View>
                 )}
               </View>
             )}
-
-            {/* --- TAMPILAN DAY 2 --- */}
-            {tanggalDay2 && (
-              <View style={{ marginTop: 20 }}>
-                {isSudahDay2 ? (
-                  <View style={styles.boxSudahAbsen}>
-                    <Text style={styles.textSudahAbsen}>✅ Anda sudah mengisi absen lembur untuk Day 2.</Text>
-                  </View>
-                ) : (
-                  <>
-                    <View style={styles.headerLembur}>
-                      <Text style={styles.textTanggal}>{tanggalDay2}</Text>
-                      <View style={styles.switchRow}>
-                        <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                        <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
-                      </View>
-                    </View>
-                    {!tidakIkutDay2 ? (
-                      <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
-                    ) : (
-                      <View style={styles.boxTidakIkut}>
-                        <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
-                      </View>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
           </View>
         )}
 
-        <Gap height={20} />
         {/* BUNGKUS SIGNATURE */}
         {tampilkanFormLanjutan && (
           <>
@@ -461,5 +529,19 @@ const styles = StyleSheet.create({
     color: '#1976D2',
     fontWeight: '600',
     fontSize: 14,
+  },
+  boxError: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EF5350',
+  },
+  textError: {
+    color: '#C62828',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 });
