@@ -297,6 +297,12 @@ export default function Page() {
   if (tanggalDay2 !== '' && isSudahDay2) tanggalSelesaiArr.push(tanggalDay2);
   const teksTanggalSelesai = tanggalSelesaiArr.join(' & ');
 
+  // --- TAMBAHKAN KODE INI DI SINI ---
+  const tanggalApprovalArr = [];
+  if (tanggalDay1 !== '' && !isSudahDay1) tanggalApprovalArr.push(tanggalDay1);
+  if (tanggalDay2 !== '' && !isSudahDay2) tanggalApprovalArr.push(tanggalDay2);
+  const teksTanggalApproval = tanggalApprovalArr.join(' & ');
+
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
@@ -365,6 +371,11 @@ export default function Page() {
                     <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 16 }}>
                       Mode Approval Aktif
                     </Text>
+                    {/* --- TAMBAHAN TANGGAL DI SINI --- */}
+                    <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 14, marginTop: 5 }}>
+                      Tanggal: {teksTanggalApproval}
+                    </Text>
+                    {/* ------------------------------- */}
                     <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
                       Jam lembur disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
                     </Text>
