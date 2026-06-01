@@ -49,13 +49,12 @@ export default function Page() {
       if (res1 && res1.tanggal) {
         setTanggalDay1(res1.tanggal);
         if (res1.jam16 === true || res1.jam16 === "true") {
-          setWaktuDay1({
-            startJam: '16', startMenit: '00',
-            endJam: '', endMenit: '',
-          });
+          setWaktuDay1({ startJam: '16', startMenit: '00', endJam: '', endMenit: '', });
+        } else if (res1.jam12 === true || res1.jam12 === "true") { // <--- TAMBAHAN UNTUK JAM 12
+          setWaktuDay1({ startJam: '12', startMenit: '00', endJam: '', endMenit: '', });
         }
       } else {
-        setTanggalDay1(''); // Pastikan kosong jika gagal
+        setTanggalDay1(''); 
       }
 
       // --- PROSES DAY 2 ---
@@ -63,13 +62,12 @@ export default function Page() {
       if (res2 && res2.tanggal) {
         setTanggalDay2(res2.tanggal);
         if (res2.jam16 === true || res2.jam16 === "true") {
-          setWaktuDay2({
-            startJam: '16', startMenit: '00',
-            endJam: '', endMenit: ''
-          });
+          setWaktuDay2({ startJam: '16', startMenit: '00', endJam: '', endMenit: '' });
+        } else if (res2.jam12 === true || res2.jam12 === "true") { // <--- TAMBAHAN UNTUK JAM 12
+          setWaktuDay2({ startJam: '12', startMenit: '00', endJam: '', endMenit: '' });
         }
       } else {
-        setTanggalDay2(''); // Sembunyikan Day 2
+        setTanggalDay2(''); 
       }
     };
 
