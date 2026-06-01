@@ -13,6 +13,9 @@ export default function Page() {
   const [jabatan, setJabatan] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const [lockStartDay1, setLockStartDay1] = useState(false);
+  const [lockStartDay2, setLockStartDay2] = useState(false);
+
   // --- STATE BARU UNTUK TIDAK IKUT LEMBUR ---
   const [tidakIkutDay1, setTidakIkutDay1] = useState(false);
   const [tidakIkutDay2, setTidakIkutDay2] = useState(false);
@@ -50,8 +53,10 @@ export default function Page() {
         setTanggalDay1(res1.tanggal);
         if (res1.jam16 === true || res1.jam16 === "true") {
           setWaktuDay1({ startJam: '16', startMenit: '00', endJam: '', endMenit: '', });
-        } else if (res1.jam12 === true || res1.jam12 === "true") { // <--- TAMBAHAN UNTUK JAM 12
+          setLockStartDay1(true); // <--- TAMBAHKAN INI
+        } else if (res1.jam12 === true || res1.jam12 === "true") { 
           setWaktuDay1({ startJam: '12', startMenit: '00', endJam: '', endMenit: '', });
+          setLockStartDay1(true); // <--- TAMBAHKAN INI
         }
       } else {
         setTanggalDay1(''); 
@@ -63,8 +68,10 @@ export default function Page() {
         setTanggalDay2(res2.tanggal);
         if (res2.jam16 === true || res2.jam16 === "true") {
           setWaktuDay2({ startJam: '16', startMenit: '00', endJam: '', endMenit: '' });
-        } else if (res2.jam12 === true || res2.jam12 === "true") { // <--- TAMBAHAN UNTUK JAM 12
+          setLockStartDay2(true); // <--- TAMBAHKAN INI
+        } else if (res2.jam12 === true || res2.jam12 === "true") { 
           setWaktuDay2({ startJam: '12', startMenit: '00', endJam: '', endMenit: '' });
+          setLockStartDay2(true); // <--- TAMBAHKAN INI
         }
       } else {
         setTanggalDay2(''); 
@@ -393,7 +400,7 @@ export default function Page() {
                           </View>
                         </View>
                         {!tidakIkutDay1 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16' || waktuDay1.startJam === '12'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={lockStartDay1} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
@@ -413,7 +420,7 @@ export default function Page() {
                           </View>
                         </View>
                         {!tidakIkutDay2 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'|| waktuDay2.startJam === '12'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={lockStartDay2} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
