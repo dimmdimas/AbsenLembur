@@ -393,7 +393,7 @@ export default function Page() {
                           </View>
                         </View>
                         {!tidakIkutDay1 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={waktuDay1.startJam === '16' || waktuDay1.startJam === '12'} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
@@ -413,7 +413,7 @@ export default function Page() {
                           </View>
                         </View>
                         {!tidakIkutDay2 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={waktuDay2.startJam === '16'|| waktuDay1.startJam === '12'} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
