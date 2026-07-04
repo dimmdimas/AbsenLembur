@@ -1,5 +1,5 @@
-import React from 'react'
-import { StyleSheet, Text, TouchableOpacity } from 'react-native'
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 interface IButton {
     onPress: () => void,
@@ -18,10 +18,11 @@ export default Button
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#FFF7C4',
+        backgroundColor: '#2b2f44',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 6
+        borderRadius: 6,
+        borderColor: '#000022'
     },
     boxEnter: {
         maxWidth: 68,
@@ -36,6 +37,6 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 12,
         fontWeight: 'bold',
-        color: '#F0CE00'
+        color: '#f5f7ff'
     }
 })

@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { Button, Gap, Input, Label, Signature, TimeInput } from "../components";
 
 export default function Page() {
@@ -450,7 +450,7 @@ export default function Page() {
                           <Text style={styles.textTanggal}>{tanggalDay1}</Text>
                           <View style={styles.switchRow}>
                             <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                            <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay1 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
+                            <Switch trackColor={{ false: "#767775", true: "#c44b62" }} thumbColor={tidakIkutDay1 ? "#b10f2e" : "#2b2f44"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
                           </View>
                         </View>
                         {!tidakIkutDay1 ? (
@@ -470,7 +470,7 @@ export default function Page() {
                           <Text style={styles.textTanggal}>{tanggalDay2}</Text>
                           <View style={styles.switchRow}>
                             <Text style={styles.textSwitch}>Tidak ikut lembur</Text>
-                            <Switch trackColor={{ false: "#767577", true: "#FFCDD2" }} thumbColor={tidakIkutDay2 ? "#D32F2F" : "#f4f3f4"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
+                            <Switch trackColor={{ false: "#767577", true: "#c44b62" }} thumbColor={tidakIkutDay2 ? "#b10f2e" : "#2b2f44"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
                           </View>
                         </View>
                         {!tidakIkutDay2 ? (
@@ -496,19 +496,32 @@ export default function Page() {
             <Gap height={20} />
 
             {/* --- UI UPLOAD EXCEL START --- */}
-            <View style={styles.boxUpload}>
-              <Text style={styles.textLabelUpload}>Upload File Excel</Text>
-              <View style={styles.rowUpload}>
-                <Button
-                  label="Pilih File"
-                  onPress={handlePickExcel}
-                />
-                <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
-                  {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
-                </Text>
-              </View>
-            </View>
-            {/* --- UI UPLOAD EXCEL END --- */}
+<View style={styles.boxUpload}>
+  <Text style={styles.textLabelUpload}>Upload File Excel</Text>
+  <View style={styles.rowUpload}>
+    <View style={{width: 80}}>
+      <Button
+        label="Pilih File"
+        onPress={handlePickExcel}
+      />
+    </View>
+    
+    <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
+      {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
+    </Text>
+
+    {/* Tombol Cancel (X) - Hanya muncul jika fileExcel memiliki data */}
+    {fileExcel && (
+      <TouchableOpacity 
+        style={styles.btnCancelUpload} 
+        onPress={() => setFileExcel(null)} // Ini akan menghapus file dari state
+      >
+        <Text style={styles.textCancelUpload}>✕</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+</View>
+{/* --- UI UPLOAD EXCEL END --- */}
 
             <Gap height={20} />
             <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
@@ -577,7 +590,7 @@ const styles = StyleSheet.create({
   },
   textSwitch: {
     marginRight: 8,
-    color: '#D32F2F',
+    color: '#b10f2e',
     fontWeight: '500',
     fontSize: 12
   },
@@ -586,10 +599,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEE',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FFCDD2'
+    borderColor: '#b10f2e'
   },
   textTidakIkut: {
-    color: '#D32F2F',
+    color: '#b10f2e',
     textAlign: 'center',
     fontWeight: 'bold'
   },
@@ -633,15 +646,15 @@ const styles = StyleSheet.create({
   },
   boxUpload: {
     padding: 15,
-    backgroundColor: '#F3E5F5', // Warna ungu muda (bebas disesuaikan)
+    backgroundColor: '#f5f7ff', // Warna ungu muda (bebas disesuaikan)
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CE93D8',
+    borderColor: '#000022',
   },
   textLabelUpload: {
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#4A148C'
+    color: '#2b2f44'
   },
   rowUpload: {
     flexDirection: 'row',
@@ -653,5 +666,21 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 13,
     fontStyle: 'italic'
+  },
+  btnCancelUpload: {
+    marginLeft: 10,
+    backgroundColor: '#FFEBEE', // Latar belakang merah sangat muda
+    width: 28,
+    height: 28,
+    borderRadius: 14, // Membuatnya bulat
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  textCancelUpload: {
+    color: '#D32F2F', // Warna merah tegas
+    fontSize: 12,
+    fontWeight: '900',
   },
 });
