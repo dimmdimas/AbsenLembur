@@ -1,3 +1,4 @@
+import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Button, Gap, Input, Label, Signature, TimeInput } from "../components";
@@ -35,6 +36,9 @@ export default function Page() {
   const NIK_MANAGER = "10000224"; // Ganti dengan NIK asli Manager
   const NIK_HRD = "10003315";     // Ganti dengan NIK asli HRD
 
+  // File Excel
+  const [fileExcel, setFileExcel] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+
   const [waktuDay1, setWaktuDay1] = useState({
     startJam: '', startMenit: '',
     endJam: '', endMenit: ''
@@ -54,12 +58,12 @@ export default function Page() {
         if (res1.jam16 === true || res1.jam16 === "true") {
           setWaktuDay1({ startJam: '16', startMenit: '00', endJam: '', endMenit: '', });
           setLockStartDay1(true); // <--- TAMBAHKAN INI
-        } else if (res1.jam12 === true || res1.jam12 === "true") { 
+        } else if (res1.jam12 === true || res1.jam12 === "true") {
           setWaktuDay1({ startJam: '12', startMenit: '00', endJam: '', endMenit: '', });
           setLockStartDay1(true); // <--- TAMBAHKAN INI
         }
       } else {
-        setTanggalDay1(''); 
+        setTanggalDay1('');
       }
 
       // --- PROSES DAY 2 ---
@@ -69,12 +73,12 @@ export default function Page() {
         if (res2.jam16 === true || res2.jam16 === "true") {
           setWaktuDay2({ startJam: '16', startMenit: '00', endJam: '', endMenit: '' });
           setLockStartDay2(true); // <--- TAMBAHKAN INI
-        } else if (res2.jam12 === true || res2.jam12 === "true") { 
+        } else if (res2.jam12 === true || res2.jam12 === "true") {
           setWaktuDay2({ startJam: '12', startMenit: '00', endJam: '', endMenit: '' });
           setLockStartDay2(true); // <--- TAMBAHKAN INI
         }
       } else {
-        setTanggalDay2(''); 
+        setTanggalDay2('');
       }
     };
 
@@ -193,18 +197,38 @@ export default function Page() {
 
   const hideTimeInput = nik === NIK_MANAGER || nik === NIK_HRD || (nik === NIK_OSH && isApprovalOnly);
 
+  const handlePickExcel = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        // Membatasi hanya file excel yang bisa dipilih
+        type: [
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setFileExcel(result.assets[0]);
+      }
+    } catch (error) {
+      console.log("Error picking file:", error);
+      alert("Gagal memilih file");
+    }
+  };
 
   const handleSubmit = async () => {
-    // 0. PENCEGAH DOUBLE CLICK: Jika sedang loading, hentikan fungsi
     if (isLoading) return;
 
     // 1. Validasi Dasar
     if (!nik || !nama) return alert("Harap isi NIK dan Nama terlebih dahulu!");
     if (!tandaTanganBase64) return alert("Harap isi Tanda Tangan terlebih dahulu!");
 
+    // VALIDASI BARU: Cek apakah file excel sudah diupload
+    if (!fileExcel) return alert("Harap upload file Excel terlebih dahulu!");
+
     // --- Validasi Day 1 ---
     if (tanggalDay1 !== '') {
-      // TAMBAHAN: Validasi jam hanya berlaku jika BUKAN mode approval
       if (!tidakIkutDay1 && !hideTimeInput) {
         if (!waktuDay1.endJam || waktuDay1.endJam === '') return alert("Jam pulang Day 1 belum diisi!");
         if (!isMinimal4Jam(waktuDay1)) return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
@@ -213,7 +237,6 @@ export default function Page() {
 
     // --- Validasi Day 2 ---
     if (tanggalDay2 !== '') {
-      // TAMBAHAN: Validasi jam hanya berlaku jika BUKAN mode approval
       if (!tidakIkutDay2 && !hideTimeInput) {
         if (!waktuDay2.endJam || waktuDay2.endJam === '') return alert("Jam pulang Day 2 belum diisi!");
         if (!isMinimal4Jam(waktuDay2)) return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
@@ -222,46 +245,84 @@ export default function Page() {
 
     let pesanSukses = "";
     const url = 'https://api.muhdimas.my.id/api/absen';
-
     setIsLoading(true);
+
+    // Fungsi helper untuk merakit FormData
+    const createFormData = (
+      payloadData: { startJam?: string; startMenit?: string; endJam?: string; endMenit?: string },
+      targetDayValue: string
+    ) => {
+      const formData = new FormData();
+
+      formData.append('nik', nik);
+      formData.append('nama', nama);
+      formData.append('jabatan', jabatan);
+      formData.append('tandaTangan', tandaTanganBase64);
+      formData.append('targetDay', targetDayValue);
+      formData.append('isApprovalMode', String(hideTimeInput));
+
+      formData.append('startJam', payloadData.startJam || '00');
+      formData.append('startMenit', payloadData.startMenit || '00');
+      formData.append('endJam', payloadData.endJam || '00');
+      formData.append('endMenit', payloadData.endMenit || '00');
+
+      // 2. Gunakan "as any" untuk membypass aturan strict Blob bawaan TypeScript
+      if (fileExcel) {
+        formData.append('fileExcel', {
+          uri: fileExcel.uri,
+          name: fileExcel.name,
+          type: fileExcel.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        } as any);
+      }
+
+      return formData;
+    };
 
     try {
       // 2. Kirim data Day 1
       if (tanggalDay1 !== '') {
-        const payloadDay1 = {
-          nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day1',
+        const payloadDay1 = (tidakIkutDay1 || hideTimeInput)
+          ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' }
+          : waktuDay1;
 
-          isApprovalMode: hideTimeInput, // <--- TAMBAHKAN BARIS INI
-          // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
-          ...(tidakIkutDay1 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay1)
-        };
-        const response1 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay1) });
+        const formData1 = createFormData(payloadDay1, 'day1');
+
+        const response1 = await fetch(url, {
+          method: 'POST',
+          // Ingat: JANGAN set 'Content-Type': 'multipart/form-data' secara manual di fetch React Native, 
+          // biarkan browser/RN yang set boundary-nya otomatis.
+          body: formData1
+        });
+
         if (response1.ok) {
-          pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`
+          pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`;
           setIsSudahDay1(true);
-        };
+        }
       }
 
       // 3. Kirim data Day 2
       if (tanggalDay2 !== '') {
-        const payloadDay2 = {
-          nik: nik, nama: nama, jabatan: jabatan, tandaTangan: tandaTanganBase64, targetDay: 'day2',
+        const payloadDay2 = (tidakIkutDay2 || hideTimeInput)
+          ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' }
+          : waktuDay2;
 
-          isApprovalMode: hideTimeInput, // <--- TAMBAHKAN BARIS INI
-          // TAMBAHAN: Jika hideTimeInput true, kirim jam 00
-          ...(tidakIkutDay2 || hideTimeInput ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' } : waktuDay2)
-        };
-        const response2 = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payloadDay2) });
+        const formData2 = createFormData(payloadDay2, 'day2');
+
+        const response2 = await fetch(url, {
+          method: 'POST',
+          body: formData2
+        });
+
         if (response2.ok) {
-          pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`
+          pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`;
           setIsSudahDay2(true);
-        };
+        }
       }
 
       if (pesanSukses !== "") {
         alert("Berhasil!\n" + pesanSukses);
 
-        // --- TAMBAHKAN KODE RESET FORM DI SINI ---
+        // Reset Form
         setNik('');
         setNama('');
         setJabatan('');
@@ -270,24 +331,17 @@ export default function Page() {
         setTandaTanganBase64('');
         setTidakIkutDay1(false);
         setTidakIkutDay2(false);
-
-        // Kembalikan jam pulang ke kosong (jam mulai biarkan utuh karena dari server)
+        setFileExcel(null); // <--- Hapus file yang sudah dipilih
         setWaktuDay1(prev => ({ ...prev, endJam: '', endMenit: '' }));
         setWaktuDay2(prev => ({ ...prev, endJam: '', endMenit: '' }));
-
-        // Paksa render ulang kotak tanda tangan agar bersih
         setResetKey(prevKey => prevKey + 1);
-        // ------------------------------------------
-
       } else {
         alert("Tidak ada data hari lembur yang dikirim.");
       }
-
     } catch (error) {
       console.error(error);
-      alert("Terjadi kesalahan jaringan.");
+      alert("Terjadi kesalahan jaringan saat mengirim data.");
     } finally {
-      // KUNCI: Kembalikan tombol ke keadaan semula baik saat error maupun sukses
       setIsLoading(false);
     }
   }
@@ -440,6 +494,23 @@ export default function Page() {
         {tampilkanFormLanjutan && (
           <>
             <Gap height={20} />
+
+            {/* --- UI UPLOAD EXCEL START --- */}
+            <View style={styles.boxUpload}>
+              <Text style={styles.textLabelUpload}>Upload File Excel</Text>
+              <View style={styles.rowUpload}>
+                <Button
+                  label="Pilih File"
+                  onPress={handlePickExcel}
+                />
+                <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
+                  {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
+                </Text>
+              </View>
+            </View>
+            {/* --- UI UPLOAD EXCEL END --- */}
+
+            <Gap height={20} />
             <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
           </>
         )}
@@ -559,5 +630,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  boxUpload: {
+    padding: 15,
+    backgroundColor: '#F3E5F5', // Warna ungu muda (bebas disesuaikan)
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CE93D8',
+  },
+  textLabelUpload: {
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#4A148C'
+  },
+  rowUpload: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  textFileName: {
+    flex: 1,
+    marginLeft: 10,
+    color: '#666',
+    fontSize: 13,
+    fontStyle: 'italic'
   },
 });
