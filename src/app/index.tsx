@@ -34,6 +34,7 @@ export default function Page() {
   const [isApprovalOnly, setIsApprovalOnly] = useState(false);
   const NIK_OSH = "10038106";     // Ganti dengan NIK asli OSH
   const NIK_MANAGER = "10000224"; // Ganti dengan NIK asli Manager
+  const NIK_MANAGER2 = "10005544"; 
   const NIK_HRD = "10003315";     // Ganti dengan NIK asli HRD
 
   // File Excel
@@ -108,8 +109,8 @@ export default function Page() {
         const urlWajib = `https://api.muhdimas.my.id/api/cek-wajib-absen/${nik}`;
         const responseWajib = await fetch(urlWajib);
 
-        // --- LOGIKA BARU: Cek apakah NIK ini adalah barisan Approval (Jalur VIP) ---
-        const isApprover = nik === NIK_OSH || nik === NIK_MANAGER || nik === NIK_HRD;
+        // --- LOGIKA BARU: Cek apakah NIK ini adalah barisan Approval ---
+        const isApprover = nik === NIK_OSH || nik === NIK_MANAGER || nik === NIK_MANAGER2 || nik === NIK_HRD;
 
         // JIKA ADA DI LIST_USERS **ATAU** DIA ADALAH APPROVER
         if (responseWajib.ok || isApprover) {
@@ -195,7 +196,7 @@ export default function Page() {
     return selisih >= (4 * 3600);
   };
 
-  const hideTimeInput = nik === NIK_MANAGER || nik === NIK_HRD || (nik === NIK_OSH && isApprovalOnly);
+  const hideTimeInput = nik === NIK_MANAGER || nik === NIK_MANAGER2 || nik === NIK_HRD || (nik === NIK_OSH && isApprovalOnly);
 
   const handlePickExcel = async () => {
     try {
@@ -225,7 +226,9 @@ export default function Page() {
     if (!tandaTanganBase64) return alert("Harap isi Tanda Tangan terlebih dahulu!");
 
     // VALIDASI BARU: Cek apakah file excel sudah diupload
-    if (!fileExcel) return alert("Harap upload file Excel terlebih dahulu!");
+    if (!hideTimeInput) {
+      if (!fileExcel) return alert("Harap upload file Excel terlebih dahulu!");
+    }
 
     // --- Validasi Day 1 ---
     if (tanggalDay1 !== '') {
@@ -436,13 +439,12 @@ export default function Page() {
                     </Text>
                     {/* ------------------------------- */}
                     <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
-                      Jam lembur disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
+                      Jam lembur & File Upload disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
                     </Text>
                   </View>
                 ) : (
                   // JIKA BUKAN MODE APPROVAL, TAMPILKAN FORM JAM SEPERTI BIASA
                   <View>
-
                     {/* --- TAMPILAN DAY 1 (Hanya muncul jika Day 1 ADA dan BELUM diabsen) --- */}
                     {tanggalDay1 !== '' && !isSudahDay1 && (
                       <View style={{ marginTop: 10 }}>
@@ -483,6 +485,36 @@ export default function Page() {
                       </View>
                     )}
 
+                    <Gap height={20} />
+
+                    {/* --- UI UPLOAD EXCEL START --- */}
+                    <View style={styles.boxUpload}>
+                      <Text style={styles.textLabelUpload}>Upload File Excel</Text>
+                      <View style={styles.rowUpload}>
+                        <View style={{ width: 80 }}>
+                          <Button
+                            label="Pilih File"
+                            onPress={handlePickExcel}
+                          />
+                        </View>
+
+                        <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
+                          {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
+                        </Text>
+
+                        {/* Tombol Cancel (X) - Hanya muncul jika fileExcel memiliki data */}
+                        {fileExcel && (
+                          <TouchableOpacity
+                            style={styles.btnCancelUpload}
+                            onPress={() => setFileExcel(null)} // Ini akan menghapus file dari state
+                          >
+                            <Text style={styles.textCancelUpload}>✕</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                    {/* --- UI UPLOAD EXCEL END --- */}
+
                   </View>
                 )}
               </View>
@@ -493,36 +525,6 @@ export default function Page() {
         {/* BUNGKUS SIGNATURE */}
         {tampilkanFormLanjutan && (
           <>
-            <Gap height={20} />
-
-            {/* --- UI UPLOAD EXCEL START --- */}
-<View style={styles.boxUpload}>
-  <Text style={styles.textLabelUpload}>Upload File Excel</Text>
-  <View style={styles.rowUpload}>
-    <View style={{width: 80}}>
-      <Button
-        label="Pilih File"
-        onPress={handlePickExcel}
-      />
-    </View>
-    
-    <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
-      {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
-    </Text>
-
-    {/* Tombol Cancel (X) - Hanya muncul jika fileExcel memiliki data */}
-    {fileExcel && (
-      <TouchableOpacity 
-        style={styles.btnCancelUpload} 
-        onPress={() => setFileExcel(null)} // Ini akan menghapus file dari state
-      >
-        <Text style={styles.textCancelUpload}>✕</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-</View>
-{/* --- UI UPLOAD EXCEL END --- */}
-
             <Gap height={20} />
             <Signature key={resetKey} onOK={(base64) => setTandaTanganBase64(base64)} />
           </>
