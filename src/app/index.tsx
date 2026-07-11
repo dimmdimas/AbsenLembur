@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { Button, Gap, Input, Label, Signature, TimeInput } from "../components";
 
 export default function Page() {
@@ -17,66 +17,65 @@ export default function Page() {
   const [lockStartDay1, setLockStartDay1] = useState(false);
   const [lockStartDay2, setLockStartDay2] = useState(false);
 
-  // --- STATE BARU UNTUK TIDAK IKUT LEMBUR ---
   const [tidakIkutDay1, setTidakIkutDay1] = useState(false);
   const [tidakIkutDay2, setTidakIkutDay2] = useState(false);
 
   const [isSudahDay1, setIsSudahDay1] = useState(false);
   const [isSudahDay2, setIsSudahDay2] = useState(false);
 
-  // State untuk me-refresh komponen Tanda Tangan
   const [resetKey, setResetKey] = useState(0);
   const [isTidakWajib, setIsTidakWajib] = useState(false);
-
-  // State untuk errorMsg
   const [errorMessage, setErrorMessage] = useState('');
 
   const [isApprovalOnly, setIsApprovalOnly] = useState(false);
-  const NIK_OSH = "10038106";     // Ganti dengan NIK asli OSH
-  const NIK_MANAGER = "10000224"; // Ganti dengan NIK asli Manager
-  const NIK_MANAGER2 = "10005544"; 
-  const NIK_HRD = "10003315";     // Ganti dengan NIK asli HRD
+  const NIK_OSH = "10038106";
+  const NIK_MANAGER = "10000224";
+  const NIK_MANAGER2 = "10005544";
+  const NIK_HRD = "10003315";
 
-  // File Excel
-  const [fileExcel, setFileExcel] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  // --- STATE FILE, ERROR, & LOADING EXCEL PER HARI ---
+  const [fileExcelDay1, setFileExcelDay1] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [fileExcelDay2, setFileExcelDay2] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [fileIdDay1, setFileIdDay1] = useState(''); // Menyimpan ID file dari server
+  const [fileIdDay2, setFileIdDay2] = useState(''); // Menyimpan ID file dari server
+  const [errorExcelDay1, setErrorExcelDay1] = useState('');
+  const [errorExcelDay2, setErrorExcelDay2] = useState('');
+  const [isUploadingDay1, setIsUploadingDay1] = useState(false);
+  const [isUploadingDay2, setIsUploadingDay2] = useState(false);
 
   const [waktuDay1, setWaktuDay1] = useState({
-    startJam: '', startMenit: '',
-    endJam: '', endMenit: ''
+    startJam: '', startMenit: '', endJam: '', endMenit: ''
   });
 
   const [waktuDay2, setWaktuDay2] = useState({
-    startJam: '', startMenit: '',
-    endJam: '', endMenit: '',
+    startJam: '', startMenit: '', endJam: '', endMenit: '',
   });
 
   useEffect(() => {
     const fetchData = async () => {
-      // --- PROSES DAY 1 ---
       const res1 = await AmbilTanggalDay('day1');
       if (res1 && res1.tanggal) {
         setTanggalDay1(res1.tanggal);
         if (res1.jam16 === true || res1.jam16 === "true") {
           setWaktuDay1({ startJam: '16', startMenit: '00', endJam: '', endMenit: '', });
-          setLockStartDay1(true); // <--- TAMBAHKAN INI
+          setLockStartDay1(true);
         } else if (res1.jam12 === true || res1.jam12 === "true") {
           setWaktuDay1({ startJam: '12', startMenit: '00', endJam: '', endMenit: '', });
-          setLockStartDay1(true); // <--- TAMBAHKAN INI
+          setLockStartDay1(true);
         }
       } else {
         setTanggalDay1('');
       }
 
-      // --- PROSES DAY 2 ---
       const res2 = await AmbilTanggalDay('day2');
       if (res2 && res2.tanggal) {
         setTanggalDay2(res2.tanggal);
         if (res2.jam16 === true || res2.jam16 === "true") {
           setWaktuDay2({ startJam: '16', startMenit: '00', endJam: '', endMenit: '' });
-          setLockStartDay2(true); // <--- TAMBAHKAN INI
+          setLockStartDay2(true);
         } else if (res2.jam12 === true || res2.jam12 === "true") {
           setWaktuDay2({ startJam: '12', startMenit: '00', endJam: '', endMenit: '' });
-          setLockStartDay2(true); // <--- TAMBAHKAN INI
+          setLockStartDay2(true);
         }
       } else {
         setTanggalDay2('');
@@ -97,32 +96,33 @@ export default function Page() {
     setErrorMessage('');
     setIsTidakWajib(false);
 
+    // Reset state Excel saat ganti NIK
+    setErrorExcelDay1('');
+    setErrorExcelDay2('');
+    setFileExcelDay1(null);
+    setFileExcelDay2(null);
+    setFileIdDay1('');
+    setFileIdDay2('');
+
     try {
-      // 1. CARI DATA KARYAWAN
       const urlInfo = `https://api.muhdimas.my.id/api/users/${nik}`;
       const responseInfo = await fetch(urlInfo);
       const dataInfo = await responseInfo.json();
 
       if (responseInfo.ok) {
-
-        // 2. CEK APAKAH NIK ADA DI COLLECTION 'list_users'
         const urlWajib = `https://api.muhdimas.my.id/api/cek-wajib-absen/${nik}`;
         const responseWajib = await fetch(urlWajib);
 
-        // --- LOGIKA BARU: Cek apakah NIK ini adalah barisan Approval ---
         const isApprover = nik === NIK_OSH || nik === NIK_MANAGER || nik === NIK_MANAGER2 || nik === NIK_HRD;
 
-        // JIKA ADA DI LIST_USERS **ATAU** DIA ADALAH APPROVER
         if (responseWajib.ok || isApprover) {
-
           setFound(true);
           setIsNIK(true);
           setNama(dataInfo.nama);
           setJabatan(dataInfo.jabatan);
           setErrorMessage('');
-          setIsTidakWajib(false); // Pastikan status blokir dimatikan
+          setIsTidakWajib(false);
 
-          // 3. CEK STATUS ABSEN DAY 1 & DAY 2
           const statusRes = await fetch(`https://api.muhdimas.my.id/api/users/cek-absen/${nik}`);
           if (statusRes.ok) {
             const statusData = await statusRes.json();
@@ -131,20 +131,15 @@ export default function Page() {
           }
 
         } else {
-          // JIKA TIDAK ADA DI LIST_USERS DAN BUKAN APPROVER: Tampilkan Kotak Oranye
           setNama(dataInfo.nama);
           setJabatan(dataInfo.jabatan);
-
-          // PERBAIKAN: found HARUS true agar UI di bawah Nama (termasuk kotak oranye) bisa dirender!
           setFound(true);
-          setIsNIK(true); // Label NIK tetap normal
-          setIsTidakWajib(true); // Aktifkan mode kotak oranye
-
-          setErrorMessage(''); // Kosongkan error merah di atas agar tidak dobel dengan kotak oranye
+          setIsNIK(true);
+          setIsTidakWajib(true);
+          setErrorMessage('');
         }
 
       } else {
-        // JIKA NIK SAMA SEKALI TIDAK ADA DI DATABASE KARYAWAN UMUM
         setNama('');
         setJabatan('');
         setFound(false);
@@ -192,16 +187,20 @@ export default function Page() {
     }
 
     if (mulai > selesai) { return false };
-
     return selisih >= (4 * 3600);
   };
 
   const hideTimeInput = nik === NIK_MANAGER || nik === NIK_MANAGER2 || nik === NIK_HRD || (nik === NIK_OSH && isApprovalOnly);
 
-  const handlePickExcel = async () => {
+  // --- LOGIKA BARU: VALIDASI EXCEL SAAT DIPILIH ---
+  const handlePickExcel = async (day: 'day1' | 'day2') => {
+    if (!nik || !nama) {
+      alert("Harap masukkan dan Enter NIK terlebih dahulu sebelum upload Excel!");
+      return;
+    }
+
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        // Membatasi hanya file excel yang bisa dipilih
         type: [
           'application/vnd.ms-excel',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -210,11 +209,73 @@ export default function Page() {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setFileExcel(result.assets[0]);
+        const selectedFile = result.assets[0];
+
+        // 1. Tampilkan status loading UI
+        if (day === 'day1') {
+          setIsUploadingDay1(true);
+          setErrorExcelDay1('');
+          setFileExcelDay1(null);
+          setFileIdDay1('');
+        } else {
+          setIsUploadingDay2(true);
+          setErrorExcelDay2('');
+          setFileExcelDay2(null);
+          setFileIdDay2('');
+        }
+
+        // 2. Siapkan file untuk divalidasi ke backend
+        const formData = new FormData();
+        if (Platform.OS === 'web') {
+          formData.append('fileExcel', selectedFile.file as any);
+        } else {
+          let fileUri = selectedFile.uri;
+          if (Platform.OS === 'ios') {
+            fileUri = selectedFile.uri.replace('file://', '');
+          }
+          formData.append('fileExcel', {
+            uri: fileUri,
+            name: selectedFile.name || `upload_${day}.xlsx`,
+            type: selectedFile.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          } as any);
+        }
+
+        // 3. Tembak endpoint validasi yang sudah kita buat sebelumnya
+        const url = `https://api.muhdimas.my.id/api/upload-excel?nik=${nik}&nama=${nama}&targetDay=${day}`;
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData,
+          headers: { 'Accept': 'application/json' }
+        });
+
+        const resData = await response.json();
+
+        // 4. Handle Hasil Validasi
+        if (response.ok) {
+          // Excel Valid!
+          if (day === 'day1') {
+            setFileExcelDay1(selectedFile);
+            setFileIdDay1(resData.fileId);
+          } else {
+            setFileExcelDay2(selectedFile);
+            setFileIdDay2(resData.fileId);
+          }
+        } else {
+          // Excel Ditolak Server (Tanggal salah, NIK beda, dll)
+          const errorMessage = resData.error || 'File Excel tidak memenuhi syarat (Format salah).';
+          if (day === 'day1') setErrorExcelDay1(errorMessage);
+          else setErrorExcelDay2(errorMessage);
+        }
       }
     } catch (error) {
       console.log("Error picking file:", error);
-      alert("Gagal memilih file");
+      const errText = "Koneksi gagal atau file terlalu besar saat melakukan pengecekan.";
+      if (day === 'day1') setErrorExcelDay1(errText);
+      else setErrorExcelDay2(errText);
+    } finally {
+      // Matikan status loading UI
+      if (day === 'day1') setIsUploadingDay1(false);
+      else setIsUploadingDay2(false);
     }
   };
 
@@ -225,107 +286,129 @@ export default function Page() {
     if (!nik || !nama) return alert("Harap isi NIK dan Nama terlebih dahulu!");
     if (!tandaTanganBase64) return alert("Harap isi Tanda Tangan terlebih dahulu!");
 
-    // VALIDASI BARU: Cek apakah file excel sudah diupload
-    if (!hideTimeInput) {
-      if (!fileExcel) return alert("Harap upload file Excel terlebih dahulu!");
-    }
-
     // --- Validasi Day 1 ---
-    if (tanggalDay1 !== '') {
+    if (tanggalDay1 !== '' && !isSudahDay1) {
       if (!tidakIkutDay1 && !hideTimeInput) {
         if (!waktuDay1.endJam || waktuDay1.endJam === '') return alert("Jam pulang Day 1 belum diisi!");
         if (!isMinimal4Jam(waktuDay1)) return alert(`⚠️ Lembur pada ${tanggalDay1} kurang dari 4 jam!`);
+        if (!fileIdDay1) return alert("Excel Day 1 belum diupload atau belum valid!");
       }
     }
 
     // --- Validasi Day 2 ---
-    if (tanggalDay2 !== '') {
+    if (tanggalDay2 !== '' && !isSudahDay2) {
       if (!tidakIkutDay2 && !hideTimeInput) {
         if (!waktuDay2.endJam || waktuDay2.endJam === '') return alert("Jam pulang Day 2 belum diisi!");
         if (!isMinimal4Jam(waktuDay2)) return alert(`⚠️ Lembur pada ${tanggalDay2} kurang dari 4 jam!`);
+        if (!fileIdDay2) return alert("Excel Day 2 belum diupload atau belum valid!");
       }
     }
 
     let pesanSukses = "";
+    let hasError = false;
+
+    // PASTIKAN URL INI BENAR:
+    // Jika di backend Anda menggunakan master router /api/, biarkan ini.
+    // Jika Anda sempat mengubahnya menjadi /api/data/, maka ganti URL ini.
     const url = 'https://api.muhdimas.my.id/api/absen';
     setIsLoading(true);
 
-    // Fungsi helper untuk merakit FormData
-    const createFormData = (
-      payloadData: { startJam?: string; startMenit?: string; endJam?: string; endMenit?: string },
-      targetDayValue: string
-    ) => {
-      const formData = new FormData();
-
-      formData.append('nik', nik);
-      formData.append('nama', nama);
-      formData.append('jabatan', jabatan);
-      formData.append('tandaTangan', tandaTanganBase64);
-      formData.append('targetDay', targetDayValue);
-      formData.append('isApprovalMode', String(hideTimeInput));
-
-      formData.append('startJam', payloadData.startJam || '00');
-      formData.append('startMenit', payloadData.startMenit || '00');
-      formData.append('endJam', payloadData.endJam || '00');
-      formData.append('endMenit', payloadData.endMenit || '00');
-
-      // 2. Gunakan "as any" untuk membypass aturan strict Blob bawaan TypeScript
-      if (fileExcel) {
-        formData.append('fileExcel', {
-          uri: fileExcel.uri,
-          name: fileExcel.name,
-          type: fileExcel.mimeType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        } as any);
-      }
-
-      return formData;
-    };
-
     try {
-      // 2. Kirim data Day 1
-      if (tanggalDay1 !== '') {
+      // 2. Kirim data Day 1 (SEKARANG MENGGUNAKAN JSON MURNI)
+      if (tanggalDay1 !== '' && !isSudahDay1) {
         const payloadDay1 = (tidakIkutDay1 || hideTimeInput)
           ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' }
           : waktuDay1;
 
-        const formData1 = createFormData(payloadDay1, 'day1');
+        const bodyAbsen1 = {
+          nik,
+          nama,
+          jabatan,
+          tandaTangan: tandaTanganBase64,
+          targetDay: 'day1',
+          isApprovalMode: hideTimeInput,
+          startJam: payloadDay1.startJam || '00',
+          startMenit: payloadDay1.startMenit || '00',
+          endJam: payloadDay1.endJam || '00',
+          endMenit: payloadDay1.endMenit || '00',
+          fileId: fileIdDay1 // Jembatan ID File dari server
+        };
 
         const response1 = await fetch(url, {
           method: 'POST',
-          // Ingat: JANGAN set 'Content-Type': 'multipart/form-data' secara manual di fetch React Native, 
-          // biarkan browser/RN yang set boundary-nya otomatis.
-          body: formData1
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json' // Wajib untuk JSON
+          },
+          body: JSON.stringify(bodyAbsen1)
         });
 
         if (response1.ok) {
           pesanSukses += `✅ Absen Day 1 Tersimpan ${tidakIkutDay1 ? '(Tidak Ikut)' : ''}\n`;
           setIsSudahDay1(true);
+        } else {
+          // Proteksi jika server error dan tidak mengembalikan JSON
+          let errMsg = 'Gagal menyimpan Day 1';
+          try {
+            const resError = await response1.json();
+            errMsg = resError.error || errMsg;
+          } catch (e) {
+            errMsg = `Server Error (${response1.status}). Rute mungkin tidak ditemukan.`;
+          }
+          alert(`Error Day 1: ${errMsg}`);
+          hasError = true;
         }
       }
 
-      // 3. Kirim data Day 2
-      if (tanggalDay2 !== '') {
+      // 3. Kirim data Day 2 (Hanya diproses jika Day 1 tidak ada error)
+      if (tanggalDay2 !== '' && !isSudahDay2 && !hasError) {
         const payloadDay2 = (tidakIkutDay2 || hideTimeInput)
           ? { startJam: '00', startMenit: '00', endJam: '00', endMenit: '00' }
           : waktuDay2;
 
-        const formData2 = createFormData(payloadDay2, 'day2');
+        const bodyAbsen2 = {
+          nik,
+          nama,
+          jabatan,
+          tandaTangan: tandaTanganBase64,
+          targetDay: 'day2',
+          isApprovalMode: hideTimeInput,
+          startJam: payloadDay2.startJam || '00',
+          startMenit: payloadDay2.startMenit || '00',
+          endJam: payloadDay2.endJam || '00',
+          endMenit: payloadDay2.endMenit || '00',
+          fileId: fileIdDay2
+        };
 
         const response2 = await fetch(url, {
           method: 'POST',
-          body: formData2
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bodyAbsen2)
         });
 
         if (response2.ok) {
           pesanSukses += `✅ Absen Day 2 Tersimpan ${tidakIkutDay2 ? '(Tidak Ikut)' : ''}`;
           setIsSudahDay2(true);
+        } else {
+          let errMsg = 'Gagal menyimpan Day 2';
+          try {
+            const resError = await response2.json();
+            errMsg = resError.error || errMsg;
+          } catch (e) {
+            errMsg = `Server Error (${response2.status}). Rute mungkin tidak ditemukan.`;
+          }
+          alert(`Error Day 2: ${errMsg}`);
+          hasError = true;
         }
       }
 
-      if (pesanSukses !== "") {
+      // 4. Sukses Total
+      if (!hasError && pesanSukses !== "") {
         alert("Berhasil!\n" + pesanSukses);
 
-        // Reset Form
         setNik('');
         setNama('');
         setJabatan('');
@@ -334,24 +417,24 @@ export default function Page() {
         setTandaTanganBase64('');
         setTidakIkutDay1(false);
         setTidakIkutDay2(false);
-        setFileExcel(null); // <--- Hapus file yang sudah dipilih
+        setFileExcelDay1(null);
+        setFileExcelDay2(null);
+        setFileIdDay1('');
+        setFileIdDay2('');
         setWaktuDay1(prev => ({ ...prev, endJam: '', endMenit: '' }));
         setWaktuDay2(prev => ({ ...prev, endJam: '', endMenit: '' }));
         setResetKey(prevKey => prevKey + 1);
-      } else {
-        alert("Tidak ada data hari lembur yang dikirim.");
       }
+
     } catch (error) {
-      console.error(error);
-      alert("Terjadi kesalahan jaringan saat mengirim data.");
+      console.error("DEBUG ERROR SUBMIT:", error);
+      alert("Terjadi kesalahan jaringan saat mengirim data utama. Pastikan server merespon.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Form lanjutan HANYA muncul jika ditemukan, DAN wajib absen, DAN belum absen
   const tampilkanFormLanjutan = found && !isTidakWajib && ((tanggalDay1 !== '' && !isSudahDay1) || (tanggalDay2 !== '' && !isSudahDay2));
-
   const tanggalAktif = [tanggalDay1, tanggalDay2].filter(tgl => tgl !== '').join(' & ');
 
   const tanggalSelesaiArr = [];
@@ -359,7 +442,6 @@ export default function Page() {
   if (tanggalDay2 !== '' && isSudahDay2) tanggalSelesaiArr.push(tanggalDay2);
   const teksTanggalSelesai = tanggalSelesaiArr.join(' & ');
 
-  // --- TAMBAHKAN KODE INI DI SINI ---
   const tanggalApprovalArr = [];
   if (tanggalDay1 !== '' && !isSudahDay1) tanggalApprovalArr.push(tanggalDay1);
   if (tanggalDay2 !== '' && !isSudahDay2) tanggalApprovalArr.push(tanggalDay2);
@@ -376,7 +458,6 @@ export default function Page() {
         <View style={styles.containerNIK}>
           <Input value={nik} onChangeText={(text) => {
             setNik(text);
-            // setFound(false);
             setIsNIK(false);
             setErrorMessage('');
           }} />
@@ -391,21 +472,16 @@ export default function Page() {
         <Label text="Nama" />
         <Input value={nama} onChangeText={setNama} jabatan={jabatan} editable={false} />
 
-        {/* --- LOGIKA TAMPILAN DIMULAI DARI SINI --- */}
         {found && (
           <View style={{ marginTop: 20 }}>
             {isTidakWajib ? (
-              // 1. TAMPILAN JIKA TIDAK ADA DI LIST_USERS (Kotak Peringatan)
               <View style={[styles.boxSudahAbsen, { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' }]}>
                 <Text style={[styles.textSudahAbsen, { color: '#E65100', textAlign: 'center' }]}>
                   ⛔ Anda tidak terdaftar dalam jadwal wajib lembur untuk tanggal {tanggalAktif}.
                 </Text>
               </View>
             ) : (
-              // 2. TAMPILAN JIKA NORMAL & WAJIB ABSEN (Form Asli Anda)
               <View>
-
-                {/* --- KOTAK HIJAU DINAMIS (Muncul jika ada tanggal yang sudah diabsen) --- */}
                 {teksTanggalSelesai !== '' && (
                   <View style={[styles.boxSudahAbsen, { marginBottom: 15 }]}>
                     <Text style={[styles.textSudahAbsen, { textAlign: 'center' }]}>
@@ -414,7 +490,6 @@ export default function Page() {
                   </View>
                 )}
 
-                {/* --- TAMBAHAN 4A: TOMBOL KHUSUS OSH --- */}
                 {nik === NIK_OSH && (
                   <View style={{ marginBottom: 15 }}>
                     <Button
@@ -427,25 +502,21 @@ export default function Page() {
                   </View>
                 )}
 
-                {/* --- TAMBAHAN 4B: JIKA MANAGER/HRD/OSH(Approval) --- */}
                 {hideTimeInput && tampilkanFormLanjutan ? (
                   <View style={{ padding: 15, backgroundColor: '#E3F2FD', borderRadius: 8 }}>
                     <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 16 }}>
                       Mode Approval Aktif
                     </Text>
-                    {/* --- TAMBAHAN TANGGAL DI SINI --- */}
                     <Text style={{ textAlign: 'center', fontWeight: 'bold', color: '#1565C0', fontSize: 14, marginTop: 5 }}>
                       Tanggal: {teksTanggalApproval}
                     </Text>
-                    {/* ------------------------------- */}
                     <Text style={{ textAlign: 'center', color: '#1565C0', fontSize: 13, marginTop: 5 }}>
                       Jam lembur & File Upload disembunyikan. Silakan langsung berikan tanda tangan Anda di bawah.
                     </Text>
                   </View>
                 ) : (
-                  // JIKA BUKAN MODE APPROVAL, TAMPILKAN FORM JAM SEPERTI BIASA
                   <View>
-                    {/* --- TAMPILAN DAY 1 (Hanya muncul jika Day 1 ADA dan BELUM diabsen) --- */}
+                    {/* --- TAMPILAN DAY 1 --- */}
                     {tanggalDay1 !== '' && !isSudahDay1 && (
                       <View style={{ marginTop: 10 }}>
                         <View style={styles.headerLembur}>
@@ -455,8 +526,45 @@ export default function Page() {
                             <Switch trackColor={{ false: "#767775", true: "#c44b62" }} thumbColor={tidakIkutDay1 ? "#b10f2e" : "#2b2f44"} value={tidakIkutDay1} onValueChange={setTidakIkutDay1} />
                           </View>
                         </View>
+
                         {!tidakIkutDay1 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={lockStartDay1} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                          <View>
+                            <TimeInput labelTanggal={""} waktu={waktuDay1} lockStart={lockStartDay1} onChangeWaktu={(field, val) => handleWaktuChange('day1', field, val)} />
+                            <Gap height={15} />
+
+                            {/* Upload Box Day 1 */}
+                            <View style={[styles.boxUpload, errorExcelDay1 ? styles.boxUploadError : null]}>
+                              <Text style={styles.textLabelUpload}>Upload Excel (Day 1)</Text>
+                              <View style={styles.rowUpload}>
+                                <View style={{ width: 100 }}>
+                                  {isUploadingDay1 ? (
+                                    <View style={styles.loadingBox}>
+                                      <ActivityIndicator size="small" color="#1565C0" />
+                                    </View>
+                                  ) : (
+                                    <Button label="Pilih File" onPress={() => handlePickExcel('day1')} />
+                                  )}
+                                </View>
+
+                                <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
+                                  {isUploadingDay1 ? 'Mengecek...' : (fileExcelDay1 ? `✅ ${fileExcelDay1.name}` : 'Belum ada file valid')}
+                                </Text>
+
+                                {fileExcelDay1 && !isUploadingDay1 && (
+                                  <TouchableOpacity style={styles.btnCancelUpload} onPress={() => { setFileExcelDay1(null); setFileIdDay1(''); }}>
+                                    <Text style={styles.textCancelUpload}>✕</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+
+                            {/* ERROR TEXT DI BAWAH KOTAK UPLOAD (DAY 1) */}
+                            {errorExcelDay1 !== '' && (
+                              <View style={styles.boxErrorUploadBawah}>
+                                <Text style={styles.textErrorUploadBawah}>⚠️ {errorExcelDay1}</Text>
+                              </View>
+                            )}
+                          </View>
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
@@ -465,7 +573,7 @@ export default function Page() {
                       </View>
                     )}
 
-                    {/* --- TAMPILAN DAY 2 (Hanya muncul jika Day 2 ADA dan BELUM diabsen) --- */}
+                    {/* --- TAMPILAN DAY 2 --- */}
                     {tanggalDay2 !== '' && !isSudahDay2 && (
                       <View style={{ marginTop: 20 }}>
                         <View style={styles.headerLembur}>
@@ -475,8 +583,45 @@ export default function Page() {
                             <Switch trackColor={{ false: "#767577", true: "#c44b62" }} thumbColor={tidakIkutDay2 ? "#b10f2e" : "#2b2f44"} value={tidakIkutDay2} onValueChange={setTidakIkutDay2} />
                           </View>
                         </View>
+
                         {!tidakIkutDay2 ? (
-                          <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={lockStartDay2} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                          <View>
+                            <TimeInput labelTanggal={""} waktu={waktuDay2} lockStart={lockStartDay2} onChangeWaktu={(field, val) => handleWaktuChange('day2', field, val)} />
+                            <Gap height={15} />
+
+                            {/* Upload Box Day 2 */}
+                            <View style={[styles.boxUpload, errorExcelDay2 ? styles.boxUploadError : null]}>
+                              <Text style={styles.textLabelUpload}>Upload Excel (Day 2)</Text>
+                              <View style={styles.rowUpload}>
+                                <View style={{ width: 100 }}>
+                                  {isUploadingDay2 ? (
+                                    <View style={styles.loadingBox}>
+                                      <ActivityIndicator size="small" color="#1565C0" />
+                                    </View>
+                                  ) : (
+                                    <Button label="Pilih File" onPress={() => handlePickExcel('day2')} />
+                                  )}
+                                </View>
+
+                                <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
+                                  {isUploadingDay2 ? 'Mengecek...' : (fileExcelDay2 ? `✅ ${fileExcelDay2.name}` : 'Belum ada file valid')}
+                                </Text>
+
+                                {fileExcelDay2 && !isUploadingDay2 && (
+                                  <TouchableOpacity style={styles.btnCancelUpload} onPress={() => { setFileExcelDay2(null); setFileIdDay2(''); }}>
+                                    <Text style={styles.textCancelUpload}>✕</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            </View>
+
+                            {/* ERROR TEXT DI BAWAH KOTAK UPLOAD (DAY 2) */}
+                            {errorExcelDay2 !== '' && (
+                              <View style={styles.boxErrorUploadBawah}>
+                                <Text style={styles.textErrorUploadBawah}>⚠️ {errorExcelDay2}</Text>
+                              </View>
+                            )}
+                          </View>
                         ) : (
                           <View style={styles.boxTidakIkut}>
                             <Text style={styles.textTidakIkut}>Anda memilih tidak ikut lembur pada hari ini.</Text>
@@ -485,36 +630,6 @@ export default function Page() {
                       </View>
                     )}
 
-                    <Gap height={20} />
-
-                    {/* --- UI UPLOAD EXCEL START --- */}
-                    <View style={styles.boxUpload}>
-                      <Text style={styles.textLabelUpload}>Upload File Excel</Text>
-                      <View style={styles.rowUpload}>
-                        <View style={{ width: 80 }}>
-                          <Button
-                            label="Pilih File"
-                            onPress={handlePickExcel}
-                          />
-                        </View>
-
-                        <Text style={styles.textFileName} numberOfLines={1} ellipsizeMode="middle">
-                          {fileExcel ? fileExcel.name : 'Belum ada file dipilih'}
-                        </Text>
-
-                        {/* Tombol Cancel (X) - Hanya muncul jika fileExcel memiliki data */}
-                        {fileExcel && (
-                          <TouchableOpacity
-                            style={styles.btnCancelUpload}
-                            onPress={() => setFileExcel(null)} // Ini akan menghapus file dari state
-                          >
-                            <Text style={styles.textCancelUpload}>✕</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-                    {/* --- UI UPLOAD EXCEL END --- */}
-
                   </View>
                 )}
               </View>
@@ -522,7 +637,6 @@ export default function Page() {
           </View>
         )}
 
-        {/* BUNGKUS SIGNATURE */}
         {tampilkanFormLanjutan && (
           <>
             <Gap height={20} />
@@ -531,17 +645,18 @@ export default function Page() {
         )}
       </ScrollView>
 
-      {/* BUNGKUS TOMBOL SUBMIT */}
       {tampilkanFormLanjutan && (
         <View style={styles.footer}>
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              {/* Anda bisa menggunakan ActivityIndicator bawaan React Native */}
               <ActivityIndicator size="small" color="#1976D2" />
               <Text style={styles.textLoading}>Sedang memproses...</Text>
             </View>
           ) : (
-            <Button label="Submit" onPress={() => handleSubmit()} />
+            <Button
+              label="Submit"
+              onPress={() => handleSubmit()}
+            />
           )}
         </View>
       )}
@@ -571,8 +686,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#eee'
   },
-
-  // Style baru untuk fitur Tidak Ikut Lembur
   headerLembur: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -610,7 +723,7 @@ const styles = StyleSheet.create({
   },
   boxSudahAbsen: {
     padding: 15,
-    backgroundColor: '#E8F5E9', // Hijau muda
+    backgroundColor: '#E8F5E9',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#C8E6C9',
@@ -646,12 +759,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
+
+  // Style untuk Upload
   boxUpload: {
     padding: 15,
-    backgroundColor: '#f5f7ff', // Warna ungu muda (bebas disesuaikan)
+    backgroundColor: '#f5f7ff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#000022',
+  },
+  boxUploadError: {
+    borderColor: '#D32F2F',
+    backgroundColor: '#FFEBEE',
   },
   textLabelUpload: {
     fontWeight: 'bold',
@@ -667,22 +786,41 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     color: '#666',
     fontSize: 13,
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    fontWeight: '500'
   },
   btnCancelUpload: {
     marginLeft: 10,
-    backgroundColor: '#FFEBEE', // Latar belakang merah sangat muda
+    backgroundColor: '#fff',
     width: 28,
     height: 28,
-    borderRadius: 14, // Membuatnya bulat
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#FFCDD2',
   },
   textCancelUpload: {
-    color: '#D32F2F', // Warna merah tegas
+    color: '#D32F2F',
     fontSize: 12,
     fontWeight: '900',
   },
+  loadingBox: {
+    backgroundColor: '#E3F2FD',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+
+  // Style Spesifik untuk teks error di BAWAH kotak upload
+  boxErrorUploadBawah: {
+    marginTop: 5,
+    paddingHorizontal: 5,
+  },
+  textErrorUploadBawah: {
+    color: '#D32F2F',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontStyle: 'italic'
+  }
 });
