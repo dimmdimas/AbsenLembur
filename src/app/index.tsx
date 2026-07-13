@@ -666,7 +666,6 @@ export default function Page() {
   );
 }
 
-//style
 
 const styles = StyleSheet.create({
   container: {
