@@ -29,7 +29,7 @@ export default function Page() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const [isApprovalOnly, setIsApprovalOnly] = useState(false);
-  const NIK_OSH = "10038106";
+  const NIK_OSH = "10079939";
   const NIK_MANAGER = "10000224";
   const NIK_MANAGER2 = "10005544";
   const NIK_HRD = "10003315";
